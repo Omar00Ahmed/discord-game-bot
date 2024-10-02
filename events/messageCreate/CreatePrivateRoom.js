@@ -66,10 +66,12 @@ async function execute(message,client) {
                 .setFooter({ text: 'استمتع وحظًا سعيدًا!' });
                         
 
-            message.reply({
+            await message.reply({
                 embeds: [gameDescriptionEmbed],
-                content:`# قام اللاعب ${message.author} بإنشاء غرفة اضغط ${channel} للإنضمام`
             });
+            message.channel.send({
+                content:`# قام اللاعب ${message.author} بإنشاء غرفة اضغط ${channel} للإنضمام`
+            })
             // client.lobbies[message.author.id].startTimeOut =  setTimeout(() => {
             //     channel.send(`${client?.lobbies[message.author.id]?.playersCount}`)
             // }, 10000);
