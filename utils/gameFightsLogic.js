@@ -113,6 +113,8 @@ async function askQuestion(lobby,channel, gameState, team1Player, team2Player) {
         await channel.permissionOverwrites.edit(team1Player, { SendMessages: true });
         await channel.permissionOverwrites.edit(team2Player, { SendMessages: true });
     
+    await Sleep(3000)
+    
     await channel.send({ 
         content: `<@${team1Player}> <@${team2Player}>, إليكم السؤال:`,
         embeds: [embed],
@@ -123,7 +125,7 @@ async function askQuestion(lobby,channel, gameState, team1Player, team2Player) {
 async function waitForAnswer(channel, gameState, team1Player, team2Player) {
     return new Promise((resolve) => {
         const filter = m => m.author.id === team1Player || m.author.id === team2Player;
-        const collector = channel.createMessageCollector({ filter, time: 20000 });
+        const collector = channel.createMessageCollector({ filter, time: 23000 });
 
         collector.on('collect', async (msg) => {
             if (checkAnswer(msg.content, gameState.currentQuestion.answer)) {
