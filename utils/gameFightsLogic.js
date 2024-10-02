@@ -155,9 +155,6 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
         collector.on('end', async (collected, reason) => {
             if (reason === 'time') {
                 channel.send("انتهى الوقت! لم يجب أحد بشكل صحيح.");
-                // Remove sending messages access from both players
-                await channel.permissionOverwrites.edit(team1Player, { SendMessages: false });
-                await channel.permissionOverwrites.edit(team2Player, { SendMessages: false });
                 resolve(null);
             }
         });
