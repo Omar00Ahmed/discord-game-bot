@@ -19,6 +19,10 @@ async function execute(message,client) {
         if (!channelName) {
             return message.reply('Please provide a channel name!');
         }
+
+        if(message.channel.id != "1291124084012351499"){
+            return message.reply(`برجاء كتابة الامر في <#1291124084012351499>`);
+        }
         
 
         try {
@@ -26,7 +30,7 @@ async function execute(message,client) {
             const channel = await message.guild.channels.create({
                 name: channelName,
                 type: ChannelType.GuildText,
-                parent:"1283954816946667610",
+                parent:"1291122949432148073",
                 permissionOverwrites: [
                     {
                         id: message.guild.id, // Deny access to @everyone
