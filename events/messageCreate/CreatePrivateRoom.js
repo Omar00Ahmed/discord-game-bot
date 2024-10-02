@@ -1,4 +1,4 @@
-const { Client, Intents, Permissions,ChannelType,PermissionsBitField,Message } = require('discord.js');
+const { Client,ChannelType,PermissionsBitField,Message,EmbedBuilder } = require('discord.js');
 const {prefix} = require("../../utils/MessagePrefix")
 const {LeaderSettings} = require("../../components/LeaderSettings");
 const { client } = require('../..');
@@ -52,8 +52,27 @@ async function execute(message,client) {
 
             // Send settings message 
             await channel.send({ embeds: [embed], components: components });
+            
+            
+            // Create a new embed for game description
+            const gameDescriptionEmbed = new EmbedBuilder()
+                .setColor('#00ff00')
+                .setTitle('وصف اللعبة')
+                .setDescription(`طريقة اللعب:\n1- شارك في اللعبة بالضغط على الزر أدناه.\n2- على صاحب اللعبة أن يقوم بتحديد الإعدادات المناسبة.\n3- قم بإختيار إحدى الفريقين للمشاركة في اللعبة.\n4- في كل جولة ، ستظهر اسئلة عند الإجابة عليها سيتم إضافة نقطة لفريقك.\n5- بإمكان الفريق إقصاء لاعب من الفريق الآخر عند وصوله إلى عدد نقاط يقوم صاحب اللعبة بتحديدها.\n6- إذا تم طرد جميع أعضاء الفريق المنافس سيفوز الفريق او اذا وصل الي عدد النقط المحدد .`)
+                .addFields(
+                    { name: 'الهدف', value: 'تشكيل فريقين والتنافس ضد بعضهما البعض.' },
+                    { name: 'اللاعبون', value: 'يمكن لما يصل إلى 4 لاعبين الانضمام إلى هذه اللعبة.' },
+                    { name: 'الفرق', value: 'سيتم تقسيم اللاعبين إلى فريقين.' },
+                    { name: 'كيفية الانضمام', value: 'انقر على زر الانضمام أدناه للمشاركة.' },
+                    { name: 'بدء اللعبة', value: 'ستبدأ اللعبة بمجرد أن يكون جميع اللاعبين جاهزين وتم تشكيل الفرق.' }
+                )
+                .setFooter({ text: 'استمتع وحظًا سعيدًا!' });
+                        
 
-            message.reply(`قام اللاعب ${message.author} بإنشاء غرفة اضغط ${channel} للإنضمام`);
+            message.reply({
+                embeds: [gameDescriptionEmbed],
+                content:`# قام اللاعب ${message.author} بإنشاء غرفة اضغط ${channel} للإنضمام`
+            });
             // client.lobbies[message.author.id].startTimeOut =  setTimeout(() => {
             //     channel.send(`${client?.lobbies[message.author.id]?.playersCount}`)
             // }, 10000);
