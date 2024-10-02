@@ -146,9 +146,7 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
                 const winningTeam = msg.author.id === team1Player ? 'team1' : 'team2';
                 await channel.send(`إجابة صحيحة! <@${msg.author.id}> يسجل نقطة لفريق ${winningTeam === 'team1' ? 'فريق 1' : 'فريق 2'}!`);
                 
-                // Remove sending messages access from both players
-                await channel.permissionOverwrites.edit(team1Player, { SendMessages: false });
-                await channel.permissionOverwrites.edit(team2Player, { SendMessages: false });
+                
                 
                 resolve(msg.author.id);
             }
