@@ -10,9 +10,6 @@ async function startGame(interaction, lobby, client) {
     await interaction.channel.send("بدء اللعبة!");
     console.log(lobby);
 
-    
-    
-
     // Save the original team compositions
     const originalTeam1 = [...lobby.team1];
     const originalTeam2 = [...lobby.team2];
@@ -24,6 +21,9 @@ async function startGame(interaction, lobby, client) {
         blacklist: new Set(),
         kickVotes: {}
     };
+
+    // Give access to send messages for all team members
+    await giveMessageAccess(interaction.channel, [...lobby.team1, ...lobby.team2]);
 
     while (!gameState.gameEnded) {
         const [team1Player, team2Player] = selectRandomPlayers(lobby, gameState.blacklist);
@@ -73,6 +73,20 @@ async function startGame(interaction, lobby, client) {
     }
 }
 
+async function giveMessageAccess(channel, players) {
+    for (const playerId of players) {
+        await channel.permissionOverwrites.edit(playerId, {
+            SendMessages: true
+        });
+    }
+}
+
+async function removeMessageAcess(channel,player){
+    await channel.permissionOverwrites.edit(player, {
+        SendMessages: false
+    });
+}
+
 
 function selectRandomPlayers(lobby, blacklist) {
     const availableTeam1 = lobby.team1.filter(player => !blacklist.has(player));
@@ -109,9 +123,8 @@ async function askQuestion(lobby,channel, gameState, team1Player, team2Player) {
         )
         .setFooter({ text: 'أول إجابة صحيحة تفوز بالنقطة!' });
     
-        // Grant permissions to team1Player and team2Player to send messages
-        await channel.permissionOverwrites.edit(team1Player, { SendMessages: true });
-        await channel.permissionOverwrites.edit(team2Player, { SendMessages: true });
+        
+        
     
     await Sleep(3000)
     
@@ -248,6 +261,7 @@ async function kickPlayer(playerId, oppositeTeam, lobby, channel) {
     const teamToUpdate = oppositeTeam === lobby.team1 ? 'team1' : 'team2';
     lobby[teamToUpdate] = lobby[teamToUpdate].filter(p => p !== playerId);
     await channel.send(`<@${playerId}> تم إقصاؤه من اللعبة!`);
+    removeMessageAcess(channel,playerId)
 }
 
 async function announceWinner(channel, gameState, lobby) {
