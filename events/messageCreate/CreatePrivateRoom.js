@@ -21,9 +21,9 @@ async function execute(message,client) {
             handleCreateRoom(message,client);
             break;
         case 'حذف_غرفة':
-
+            handleRemoveRoom(message,client);
+            break;
     
-
     }}
 
 async function handleCreateRoom(message,client){
