@@ -53,6 +53,10 @@ async function handleCreateRoom(message,client){
                     id: message.guild.id, // Deny access to @everyone
                     deny: [PermissionsBitField.Flags.SendMessages],
                 },
+                {
+                    id: message.author.id, // Grant access to the player
+                    allow: [PermissionsBitField.Flags.SendMessages],
+                },
             ],
         });
     
@@ -66,7 +70,7 @@ async function handleCreateRoom(message,client){
             players: [],
             maxPlayers: 4,
             step:"players",
-            team1: [],
+            team1: [`${message.author.id}`],
             team2: []
         };
 

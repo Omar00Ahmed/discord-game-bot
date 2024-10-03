@@ -172,7 +172,7 @@ function checkAnswer(userAnswer, correctAnswer) {
 }
 
 async function offerKick(channel, winner, oppositeTeam, gameState, lobby, interaction, client) {
-    if(!channel || !lobby) return;
+    if (!channel || !lobby) return;
     if (oppositeTeam.length === 1) {
         const kickedPlayer = oppositeTeam[0];
         const teamToUpdate = oppositeTeam === lobby.team1 ? 'team1' : 'team2';
@@ -189,47 +189,43 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
     const winningTeam = lobby.team1.includes(winner) ? lobby.team1 : lobby.team2;
     const playerNames = await createUserArray(oppositeTeam, client);
 
+    const votingPlayers = winningTeam.map(id => `<@${id}>`).join(', ');
+
     const embed = new EmbedBuilder()
         .setColor(0xFF0000)
         .setTitle('فرصة للإقصاء!')
-        .setDescription(`فريق الفائز، لديكم فرصة للتصويت على إقصاء لاعب من الفريق المنافس. اختاروا لاعبًا للإقصاء:`)
+        .setDescription(`${votingPlayers}\nلديكم فرصة للتصويت على إقصاء لاعب من الفريق المنافس. اختاروا لاعبًا للإقصاء:`)
         .setFooter({ text: 'لديكم 10 ثوانٍ للتصويت' });
-
-    const row = new ActionRowBuilder()
-        .addComponents(
-            playerNames.map(player => 
-                new ButtonBuilder()
-                    .setCustomId(`kick_${player.playerId}`)
-                    .setLabel(`إقصاء ${player.name}`)
-                    .setStyle(ButtonStyle.Primary)
-            )
-        );
-
-    const kickMessage = await channel.send({ embeds: [embed], components: [row] });
 
     const votes = {};
     playerNames.forEach(player => {
         votes[player.playerId] = 0;
     });
 
-    const filter = i => winningTeam.includes(i.user.id) && i.customId.startsWith('kick_');
-    const collector = kickMessage.createMessageComponentCollector({ filter, time: 10000 });
-
-    let voteCountMessage = await channel.send("عدد الأصوات الحالي: ");
-
-    const updateVoteCount = async () => {
-        const voteCountString = playerNames.map(player => 
-            `${player.name}: ${votes[player.playerId]}`
-        ).join(' | ');
-        await voteCountMessage.edit(`عدد الأصوات الحالي: ${voteCountString}`);
+    const createButtons = () => {
+        return new ActionRowBuilder()
+            .addComponents(
+                playerNames.map(player => 
+                    new ButtonBuilder()
+                        .setCustomId(`kick_${player.playerId}`)
+                        .setLabel(`إقصاء ${player.name} (${votes[player.playerId]})`)
+                        .setStyle(ButtonStyle.Primary)
+                )
+            );
     };
+
+    let kickMessage = await channel.send({ embeds: [embed], components: [createButtons()] });
+
+    const filter = i => winningTeam.includes(i.user.id) && i.customId.startsWith('kick_');
+    const collector = kickMessage.createMessageComponentCollector({ filter, time: 15000 });
 
     return new Promise((resolve) => {
         collector.on('collect', async i => {
             const votedPlayer = i.customId.split('_')[1];
             votes[votedPlayer]++;
-            await updateVoteCount();
-            await i.reply({ content: `تم التصويت على إقصاء <@${votedPlayer}>`, ephemeral: true });
+            
+            await i.update({ components: [createButtons()] });
+            await i.followUp({ content: `تم التصويت على إقصاء <@${votedPlayer}>`, ephemeral: true });
 
             if (votes[votedPlayer] === winningTeam.length) {
                 collector.stop('unanimous');
@@ -238,10 +234,10 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
 
         collector.on('end', async (collected, reason) => {
             if(!kickMessage || !lobby) return;
-            kickMessage.edit({ components: [] });
+            await kickMessage.edit({ components: [] });
             if (reason === 'unanimous') {
                 const kickedPlayer = Object.keys(votes).find(player => votes[player] === winningTeam.length);
-                await kickPlayer(kickedPlayer, oppositeTeam, lobby, channel);
+                if (kickedPlayer) await kickPlayer(kickedPlayer, oppositeTeam, lobby, channel);
             } else {
                 const maxVotes = Math.max(...Object.values(votes));
                 const kickedPlayers = Object.keys(votes).filter(player => votes[player] === maxVotes);
@@ -253,7 +249,6 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
                 }
             }
 
-            await voteCountMessage.delete();
             resolve();
         });
     });
