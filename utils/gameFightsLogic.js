@@ -19,7 +19,8 @@ async function startGame(interaction, lobby, client) {
         currentQuestion: null,
         gameEnded: false,
         blacklist: new Set(),
-        kickVotes: {}
+        kickVotes: {},
+        roundsThreshold:0
     };
 
     // Give access to send messages for all team members
@@ -37,12 +38,11 @@ async function startGame(interaction, lobby, client) {
 
         await askQuestion(lobby,interaction.channel, gameState, team1Player, team2Player);
         const winner = await waitForAnswer(interaction.channel, gameState, team1Player, team2Player);
-
+        gameState.blacklist.add(team1Player).add(team2Player);
         if (winner) {
             const winningTeam = lobby.team1.includes(winner) ? 'team1' : 'team2';
             gameState.scores[winningTeam]++;
-            gameState.blacklist.add(team1Player).add(team2Player);
-
+            
             if (lobby.kickAllowed && gameState.scores[winningTeam] % lobby.kickRounds === 0) {
                 await offerKick(interaction.channel, winner, winningTeam === 'team1' ? lobby.team2 : lobby.team1, gameState, lobby, interaction, client);
             }
@@ -145,9 +145,6 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
                 collector.stop('correct');
                 const winningTeam = msg.author.id === team1Player ? 'team1' : 'team2';
                 await channel.send(`إجابة صحيحة! <@${msg.author.id}> يسجل نقطة لفريق ${winningTeam === 'team1' ? 'فريق 1' : 'فريق 2'}!`);
-                
-                
-                
                 resolve(msg.author.id);
             }
         });
@@ -305,9 +302,8 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
             await i.update({ content: 'جاري إعادة تشغيل اللعبة...', components: [] });
             await startGame(interaction, lobby, client); // Restart the game
         } else if (i.customId === 'remove_channel') {
-            delete client.lobbies[lobby.owner];
             await i.update({ content: 'جاري إزالة القناة...', components: [] });
-            await interaction.channel.delete();
+            await stopTheGame(interaction.channel, lobby.owner); // Stop the Discord channel and remove the lobby from the client's lobbies map
         }
     });
 
@@ -336,6 +332,12 @@ async function createUserArray(ids,client) {
     return userArray;
 }
 
+async function stopTheGame(channel,lobbyOwnerId){
+    delete client.lobbies[lobbyOwnerId];
+    await channel.delete();
+}
+
 module.exports = {
-    startGame
+    startGame,
+    stopTheGame,
 };
