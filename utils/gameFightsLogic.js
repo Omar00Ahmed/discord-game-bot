@@ -36,7 +36,8 @@ async function startGame(interaction, lobby, client) {
         interaction.channel.send(`السؤال التالي بعد 2 ثواني .. <@${team1Player}> - <@${team2Player}>`)
         await Sleep(2000)
 
-        await askQuestion(lobby,interaction.channel, gameState, team1Player, team2Player);
+        const isQuestionSent = await askQuestion(lobby,interaction.channel, gameState, team1Player, team2Player);
+        if(!isQuestionSent) return;
         const winner = await waitForAnswer(interaction.channel, gameState, team1Player, team2Player);
         gameState.blacklist.add(team1Player).add(team2Player);
         if (winner) {
@@ -129,11 +130,16 @@ async function askQuestion(lobby,channel, gameState, team1Player, team2Player) {
     
     await Sleep(3000)
     
-    await channel.send({ 
-        content: `<@${team1Player}> <@${team2Player}>, إليكم السؤال:`,
-        embeds: [embed],
-        files: [await createImage(randomQuestion.question)]
-    });
+    try{
+        await channel.send({ 
+            content: `<@${team1Player}> <@${team2Player}>, إليكم السؤال:`,
+            embeds: [embed],
+            files: [await createImage(randomQuestion.question)]
+        });
+        return true;
+    }catch(err){
+        return false;
+    }
 }
 
 async function waitForAnswer(channel, gameState, team1Player, team2Player) {
@@ -338,7 +344,8 @@ async function createUserArray(ids,client) {
     return userArray;
 }
 
-async function stopTheGame(channel, lobbyOwnerId,client) {
+async function stopTheGame(channel, lobbyOwnerId,client,gamestate) {
+    
     const lobbyId = channel.id;
     delete client.lobbies[lobbyOwnerId];
     await channel.delete();
