@@ -108,7 +108,7 @@ async function handleRemoveRoom(message,client){
     if (lobby) {
         const ownerId = lobby.owner;
         console.log(ownerId);
-        await stopTheGame(message.channel,ownerId);
+        await stopTheGame(message.channel,ownerId,client);
     } else {
         message.reply('لم يتم العثور على غرفة مرتبطة بهذه القناة.');
     }

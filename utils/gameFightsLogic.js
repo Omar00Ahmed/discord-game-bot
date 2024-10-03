@@ -2,11 +2,13 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const theQuestions = require('../public/data/questions.json');
 const { Sleep } = require('./createDelay');
 const { createImage } = require('./createImage');
-
+const { createGameState, getGameState, isGameActive, setGameInactive, deleteGameState } = require('./gameStates');
 const questions = theQuestions;
 const questionsMemo = new Map();
 
 async function startGame(interaction, lobby, client) {
+    const lobbyId = interaction.channel.id;
+    const gameState = createGameState(lobbyId);
     await interaction.channel.send("بدء اللعبة!");
     console.log(lobby);
 
@@ -14,19 +16,14 @@ async function startGame(interaction, lobby, client) {
     const originalTeam1 = [...lobby.team1];
     const originalTeam2 = [...lobby.team2];
 
-    const gameState = {
-        scores: { team1: 0, team2: 0 },
-        currentQuestion: null,
-        gameEnded: false,
-        blacklist: new Set(),
-        kickVotes: {},
-        roundsThreshold:0
-    };
 
     // Give access to send messages for all team members
     await giveMessageAccess(interaction.channel, [...lobby.team1, ...lobby.team2]);
 
-    while (!gameState.gameEnded) {
+    while (!isGameActive(lobbyId) && !gameState.gameEnded) {
+        if (!isGameActive(lobbyId)) {
+            break; // Exit the game loop if the game is no longer active
+        }
         const [team1Player, team2Player] = selectRandomPlayers(lobby, gameState.blacklist);
 
         if (!team1Player || !team2Player) {
@@ -59,6 +56,7 @@ async function startGame(interaction, lobby, client) {
         if (gameState.scores.team1 >= lobby.winningPoints || gameState.scores.team2 >= lobby.winningPoints) {
             gameState.gameEnded = true;
         }
+        
         
     }
 
@@ -303,7 +301,7 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
             await startGame(interaction, lobby, client); // Restart the game
         } else if (i.customId === 'remove_channel') {
             await i.update({ content: 'جاري إزالة القناة...', components: [] });
-            await stopTheGame(interaction.channel, lobby.owner); // Stop the Discord channel and remove the lobby from the client's lobbies map
+            await stopTheGame(interaction.channel, lobby.owner,client); // Stop the Discord channel and remove the lobby from the client's lobbies map
         }
     });
 
@@ -332,7 +330,10 @@ async function createUserArray(ids,client) {
     return userArray;
 }
 
-async function stopTheGame(channel,lobbyOwnerId){
+async function stopTheGame(channel, lobbyOwnerId,client) {
+    const lobbyId = channel.id;
+    setGameInactive(lobbyId);
+    deleteGameState(lobbyId);
     delete client.lobbies[lobbyOwnerId];
     await channel.delete();
 }
