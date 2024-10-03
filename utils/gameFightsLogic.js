@@ -10,7 +10,6 @@ const questionsMemo = new Map();
 async function startGame(interaction, lobby, client) {
     await interaction.channel.send("بدء اللعبة!");
     console.log(lobby);
-    client.lobbies[lobby.owner].collectors = [];
     // Save the original team compositions
     const originalTeam1 = [...lobby.team1];
     const originalTeam2 = [...lobby.team2];
@@ -55,6 +54,12 @@ async function startGame(interaction, lobby, client) {
             } else if (lobby.team2.length === 0) {
                 gameState.gameEnded = true;
                 // gameState.scores.team1 = lobby.winningPoints;
+            }
+        }else{
+            if(gameState.roundsThreshold == 5){
+                
+                await interaction.channel.send("لم يتم الاجإبة ل 5 ادوار متتالية , سيتم ايقاف اللعبة");
+                gameState.gameEnded = true;
             }
         }
 
@@ -154,6 +159,7 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
                 collector.stop('correct');
                 const winningTeam = msg.author.id === team1Player ? 'team1' : 'team2';
                 await channel.send(`إجابة صحيحة! <@${msg.author.id}> يسجل نقطة لفريق ${winningTeam === 'team1' ? 'فريق 1' : 'فريق 2'}!`);
+                gameState.roundsThreshold = 0;
                 resolve(msg.author.id);
             }
         });
@@ -162,6 +168,7 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
             if(!channel) return;
             if (reason === 'time') {
                 channel.send("انتهى الوقت! لم يجب أحد بشكل صحيح.");
+                gameState.roundsThreshold++;
                 resolve(null);
             }
         });
@@ -219,7 +226,6 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
 
     const filter = i => winningTeam.includes(i.user.id) && i.customId.startsWith('kick_');
     const collector = kickMessage.createMessageComponentCollector({ filter, time: 15000 });
-    assignCollector(lobby,collector);
     return new Promise((resolve) => {
         collector.on('collect', async i => {
             const votedPlayer = i.customId.split('_')[1];
@@ -299,7 +305,6 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
 
     const filter = i => (i.customId === 'restart_game' || i.customId === 'remove_channel') && i.user.id === lobby.owner;
     const collector = message.createMessageComponentCollector({ filter, time: 120000 });
-    assignCollector(lobby, collector);
     collector.on('collect', async i => {
         if (i.customId === 'restart_game') {
             // Restore the original teams
@@ -340,22 +345,9 @@ async function createUserArray(ids,client) {
     return userArray;
 }
 
-async function assignCollector(lobby,collector){
-    if(collector){
-        client?.lobbies[lobby.owner]?.collectors?.push(collector);
-    }
-    return collector;
-}
+
 
 async function stopTheGame(channel, lobbyOwnerId,client,lobby) {
-    if (client?.lobbies[lobbyOwnerId]?.collectors) {
-        client.lobbies[lobbyOwnerId].collectors.forEach(collector => {
-            if (collector && !collector.ended) {
-                collector.stop();
-            }
-        });
-        client.lobbies[lobbyOwnerId].collectors = [];
-    }
     const lobbyId = channel.id;
     delete client.lobbies[lobbyOwnerId];
     await channel.delete();
