@@ -316,8 +316,8 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
 
     collector.on('end', collected => {
         if (collected.size === 0) {
-            if(!message )return ;
-            message.edit({ content: 'انتهى الوقت، لم يتم اختيار أي خيار.', components: [] });
+            if(!message )return;
+            // message.edit({ content: 'انتهى الوقت، لم يتم اختيار أي خيار.', components: [] });
         }
     });
 }
@@ -348,7 +348,6 @@ async function assignCollector(lobby,collector){
 }
 
 async function stopTheGame(channel, lobbyOwnerId,client,lobby) {
-    if(!lobby) return;
     if (client?.lobbies[lobbyOwnerId]?.collectors) {
         client.lobbies[lobbyOwnerId].collectors.forEach(collector => {
             if (collector && !collector.ended) {
