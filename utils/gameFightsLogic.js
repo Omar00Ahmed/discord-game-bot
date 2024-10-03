@@ -2,6 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const theQuestions = require('../public/data/questions.json');
 const { Sleep } = require('./createDelay');
 const { createImage } = require('./createImage');
+const { client } = require('..');
 
 const questions = theQuestions;
 const questionsMemo = new Map();
@@ -9,7 +10,7 @@ const questionsMemo = new Map();
 async function startGame(interaction, lobby, client) {
     await interaction.channel.send("بدء اللعبة!");
     console.log(lobby);
-
+    client.lobbies[lobby.owner].collectors = [];
     // Save the original team compositions
     const originalTeam1 = [...lobby.team1];
     const originalTeam2 = [...lobby.team2];
@@ -218,7 +219,7 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
 
     const filter = i => winningTeam.includes(i.user.id) && i.customId.startsWith('kick_');
     const collector = kickMessage.createMessageComponentCollector({ filter, time: 15000 });
-
+    assignCollector(lobby,collector);
     return new Promise((resolve) => {
         collector.on('collect', async i => {
             const votedPlayer = i.customId.split('_')[1];
@@ -298,7 +299,7 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
 
     const filter = i => (i.customId === 'restart_game' || i.customId === 'remove_channel') && i.user.id === lobby.owner;
     const collector = message.createMessageComponentCollector({ filter, time: 120000 });
-
+    assignCollector(lobby, collector);
     collector.on('collect', async i => {
         if (i.customId === 'restart_game') {
             // Restore the original teams
@@ -339,11 +340,28 @@ async function createUserArray(ids,client) {
     return userArray;
 }
 
-async function stopTheGame(channel, lobbyOwnerId,client,gamestate) {
-    
+async function assignCollector(lobby,collector){
+    if(collector){
+        client?.lobbies[lobby.owner]?.collectors?.push(collector);
+    }
+    return collector;
+}
+
+async function stopTheGame(channel, lobbyOwnerId,client,lobby) {
+    if(!lobby) return;
+    if (client?.lobbies[lobbyOwnerId]?.collectors) {
+        client.lobbies[lobbyOwnerId].collectors.forEach(collector => {
+            if (collector && !collector.ended) {
+                collector.stop();
+            }
+        });
+        client.lobbies[lobbyOwnerId].collectors = [];
+    }
     const lobbyId = channel.id;
     delete client.lobbies[lobbyOwnerId];
     await channel.delete();
+    
+
 }
 
 module.exports = {
