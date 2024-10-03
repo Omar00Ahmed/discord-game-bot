@@ -58,7 +58,7 @@ async function execute(interaction, client) {
                 lobby.team1 = [lobby.owner];
                 lobby.team2 = [];
                 const {embed,components} = LobbyComponent(lobby,userId)
-                await interaction.channel.send({ embeds: [embed], components });
+                await interaction.channel.send({ embeds: [embed], components,content:"|| @everyone ||" });
                 return interaction.update({ 
                     content: 'Settings are complete. Starting the game...', 
                     embeds: [

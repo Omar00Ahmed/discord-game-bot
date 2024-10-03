@@ -2,12 +2,12 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelect
 const questions = require("../public/data/questions.json")
 
 const availablePlayerOptions = [
-    { label: "1v1", value: "1v1" },
-    { label: "2v2", value: "2v2" },
-    { label: "3v3", value: "3v3" },
-    { label: "4v4", value: "4v4" },
-    { label: "5v5", value: "5v5" },
-    { label: "15v15", value: "15v15" },
+    { label: "1 ضد 1", value: "1v1" },
+    { label: "2 ضد 2", value: "2v2" },
+    { label: "3 ضد 3", value: "3v3" },
+    { label: "4 ضد 4", value: "4v4" },
+    { label: "5 ضد 5", value: "5v5" },
+    { label: "15 ضد 15", value: "15v15" },
 ];
 
 const questionCategories = Object.keys(questions).map(key => ({
@@ -16,10 +16,10 @@ const questionCategories = Object.keys(questions).map(key => ({
 }))
 
 const winningPointsOptions = [
-    { label: "5 points", value: "5" },
-    { label: "10 points", value: "10" },
-    { label: "15 points", value: "15" },
-    { label: "20 points", value: "20" },
+    { label: "5 نقاط", value: "5" },
+    { label: "10 نقاط", value: "10" },
+    { label: "15 نقطة", value: "15" },
+    { label: "20 نقطة", value: "20" },
 ];
 
 const LeaderSettings = (lobby, userId) => {
@@ -30,24 +30,24 @@ const LeaderSettings = (lobby, userId) => {
 
     switch (lobby.step) {
         case 'players':
-            embed.setTitle('Select number of players')
-                .setDescription('Choose the number of players to start the game');
+            embed.setTitle('اختر عدد اللاعبين')
+                .setDescription('اختر عدد اللاعبين لبدء اللعبة');
             
             const playerSelect = new StringSelectMenuBuilder()
                 .setCustomId(`isleaderSettings_playerSelect_${userId}`)
-                .setPlaceholder('Select player count')
+                .setPlaceholder('اختر عدد اللاعبين')
                 .addOptions(availablePlayerOptions);
             
             components.push(new ActionRowBuilder().addComponents(playerSelect));
             break;
 
         case 'category':
-            embed.setTitle('Select question categories')
-                .setDescription('Choose one or more categories for the questions (max 3)');
+            embed.setTitle('اختر فئات الأسئلة')
+                .setDescription('اختر فئة واحدة أو أكثر للأسئلة (الحد الأقصى 3)');
             
             const categorySelect = new StringSelectMenuBuilder()
                 .setCustomId(`isleaderSettings_categorySelect_${userId}`)
-                .setPlaceholder('Select categories')
+                .setPlaceholder('اختر الفئات')
                 .setMinValues(1)
                 .setMaxValues(3)
                 .addOptions(questionCategories);
@@ -56,17 +56,17 @@ const LeaderSettings = (lobby, userId) => {
             break;
 
         case 'kickAllowed':
-            embed.setTitle('Allow kicking players?')
-                .setDescription('Choose whether players can be kicked');
+            embed.setTitle('السماح بطرد اللاعبين؟')
+                .setDescription('اختر ما إذا كان يمكن طرد اللاعبين');
             
             const kickAllowedButtons = [
                 new ButtonBuilder()
                 .setCustomId(`isleaderSettings_kickAllowed_${userId}_true`)
-                .setLabel('Yes')
+                .setLabel('نعم')
                 .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
                 .setCustomId(`isleaderSettings_kickAllowed_${userId}_false`)
-                .setLabel('No')
+                .setLabel('لا')
                 .setStyle(ButtonStyle.Primary),
             ];
             
@@ -74,8 +74,8 @@ const LeaderSettings = (lobby, userId) => {
             break;
 
         case 'kickRounds':
-            embed.setTitle('Set kick rounds')
-                .setDescription('Choose after how many rounds a player can be kicked');
+            embed.setTitle('تعيين جولات الطرد')
+                .setDescription('اختر بعد كم جولة يمكن طرد اللاعب');
             
             const kickRoundsButtons = [1, 2, 3, 4, 5].map(num => 
                 new ButtonBuilder()
@@ -88,26 +88,26 @@ const LeaderSettings = (lobby, userId) => {
             break;
 
         case 'winningPoints':
-            embed.setTitle('Set winning points')
-                .setDescription('Choose how many points are needed to win the game');
+            embed.setTitle('تعيين نقاط الفوز')
+                .setDescription('اختر عدد النقاط المطلوبة للفوز باللعبة');
             
             const winningPointsSelect = new StringSelectMenuBuilder()
                 .setCustomId(`isleaderSettings_winningPointsSelect_${userId}`)
-                .setPlaceholder('Select winning points')
+                .setPlaceholder('اختر نقاط الفوز')
                 .addOptions(winningPointsOptions);
             
             components.push(new ActionRowBuilder().addComponents(winningPointsSelect));
             break;
 
         case 'complete':
-            embed.setTitle('Settings Complete')
-                .setDescription('All settings have been configured')
+            embed.setTitle('اكتملت الإعدادات')
+                .setDescription('تم تكوين جميع الإعدادات')
                 .addFields(
-                { name: 'Players', value: lobby.playersCount || 'Not set' },
-                { name: 'Category', value: lobby.categories.join(', ') || 'Not set' },
-                { name: 'Kick Allowed', value: lobby.kickAllowed ? 'Yes' : 'No' },
-                { name: 'Kick Rounds', value: lobby.kickRounds?.toString() || 'Not set' },
-                { name: 'Winning Points', value: lobby.winningPoints?.toString()}
+                { name: 'اللاعبون', value: lobby.playersCount || 'لم يتم التعيين' },
+                { name: 'الفئة', value: lobby.categories.join(', ') || 'لم يتم التعيين' },
+                { name: 'السماح بالطرد', value: lobby.kickAllowed ? 'نعم' : 'لا' },
+                { name: 'جولات الطرد', value: lobby.kickRounds?.toString() || 'لم يتم التعيين' },
+                { name: 'نقاط الفوز', value: lobby.winningPoints?.toString() || 'لم يتم التعيين' }
                 );
         break;
     }
@@ -115,11 +115,11 @@ const LeaderSettings = (lobby, userId) => {
     const controlButtons = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
         .setCustomId(`isleaderSettings_next_${userId}`)
-        .setLabel('Start')
+        .setLabel('ابدأ')
         .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
         .setCustomId(`isleaderSettings_cancelbutton_${userId}`)
-        .setLabel('Cancel Room')
+        .setLabel('إلغاء الغرفة')
         .setStyle(ButtonStyle.Danger)
     );
 
