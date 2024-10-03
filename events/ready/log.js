@@ -18,7 +18,7 @@ const execute =  (client) => {
     })
     // get all channels id in specific guild
     app.get('/channelsId', (req, res) => {
-        const guildId = "1280643923093618699"; // replace with your guild id
+        const guildId = "999450379152527431"; // replace with your guild id
         const channels = client.guilds.cache.get(guildId).channels.cache;
         res.json(channels.map(c => {
             return { id: c.id, name: c.name, type: c.type };

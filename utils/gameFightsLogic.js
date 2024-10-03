@@ -56,7 +56,7 @@ async function startGame(interaction, lobby, client) {
                 // gameState.scores.team1 = lobby.winningPoints;
             }
         }else{
-            if(gameState.roundsThreshold == 5){
+            if(gameState.roundsThreshold == 3){
                 
                 await interaction.channel.send("لم يتم الاجإبة ل 5 ادوار متتالية , سيتم ايقاف اللعبة");
                 gameState.gameEnded = true;
