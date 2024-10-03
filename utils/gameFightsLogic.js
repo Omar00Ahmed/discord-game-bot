@@ -2,13 +2,11 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const theQuestions = require('../public/data/questions.json');
 const { Sleep } = require('./createDelay');
 const { createImage } = require('./createImage');
-const { createGameState, getGameState, isGameActive, setGameInactive, deleteGameState } = require('./gameStates');
+
 const questions = theQuestions;
 const questionsMemo = new Map();
 
 async function startGame(interaction, lobby, client) {
-    const lobbyId = interaction.channel.id;
-    const gameState = createGameState(lobbyId);
     await interaction.channel.send("بدء اللعبة!");
     console.log(lobby);
 
@@ -16,14 +14,19 @@ async function startGame(interaction, lobby, client) {
     const originalTeam1 = [...lobby.team1];
     const originalTeam2 = [...lobby.team2];
 
+    const gameState = {
+        scores: { team1: 0, team2: 0 },
+        currentQuestion: null,
+        gameEnded: false,
+        blacklist: new Set(),
+        kickVotes: {},
+        roundsThreshold:0
+    };
 
     // Give access to send messages for all team members
     await giveMessageAccess(interaction.channel, [...lobby.team1, ...lobby.team2]);
 
-    while (!isGameActive(lobbyId) && !gameState.gameEnded) {
-        if (!isGameActive(lobbyId)) {
-            break; // Exit the game loop if the game is no longer active
-        }
+    while (!gameState.gameEnded) {
         const [team1Player, team2Player] = selectRandomPlayers(lobby, gameState.blacklist);
 
         if (!team1Player || !team2Player) {
@@ -56,7 +59,6 @@ async function startGame(interaction, lobby, client) {
         if (gameState.scores.team1 >= lobby.winningPoints || gameState.scores.team2 >= lobby.winningPoints) {
             gameState.gameEnded = true;
         }
-        
         
     }
 
@@ -101,6 +103,7 @@ function selectRandomPlayers(lobby, blacklist) {
 }
 
 async function askQuestion(lobby,channel, gameState, team1Player, team2Player) {
+    if(!lobby) return;
     const randomCategory = lobby.categories[Math.floor(Math.random() * lobby.categories.length)]
     
     const categoryLength = questionsMemo?.randomCategory || Object.keys(theQuestions[randomCategory]).length;
@@ -134,6 +137,7 @@ async function askQuestion(lobby,channel, gameState, team1Player, team2Player) {
 }
 
 async function waitForAnswer(channel, gameState, team1Player, team2Player) {
+    if(!channel) return;
     return new Promise((resolve) => {
         const filter = m => m.author.id === team1Player || m.author.id === team2Player;
         const collector = channel.createMessageCollector({ filter, time: 23000 });
@@ -148,6 +152,7 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
         });
 
         collector.on('end', async (collected, reason) => {
+            if(!channel) return;
             if (reason === 'time') {
                 channel.send("انتهى الوقت! لم يجب أحد بشكل صحيح.");
                 resolve(null);
@@ -161,6 +166,7 @@ function checkAnswer(userAnswer, correctAnswer) {
 }
 
 async function offerKick(channel, winner, oppositeTeam, gameState, lobby, interaction, client) {
+    if(!channel || !lobby) return;
     if (oppositeTeam.length === 1) {
         const kickedPlayer = oppositeTeam[0];
         const teamToUpdate = oppositeTeam === lobby.team1 ? 'team1' : 'team2';
@@ -225,8 +231,8 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
         });
 
         collector.on('end', async (collected, reason) => {
+            if(!kickMessage || !lobby) return;
             kickMessage.edit({ components: [] });
-
             if (reason === 'unanimous') {
                 const kickedPlayer = Object.keys(votes).find(player => votes[player] === winningTeam.length);
                 await kickPlayer(kickedPlayer, oppositeTeam, lobby, channel);
@@ -248,6 +254,7 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
 }
 
 async function kickPlayer(playerId, oppositeTeam, lobby, channel) {
+    if(!lobby) return;
     const teamToUpdate = oppositeTeam === lobby.team1 ? 'team1' : 'team2';
     lobby[teamToUpdate] = lobby[teamToUpdate].filter(p => p !== playerId);
     await channel.send(`<@${playerId}> تم إقصاؤه من اللعبة!`);
@@ -307,6 +314,7 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
 
     collector.on('end', collected => {
         if (collected.size === 0) {
+            if(!message )return ;
             message.edit({ content: 'انتهى الوقت، لم يتم اختيار أي خيار.', components: [] });
         }
     });
@@ -332,8 +340,6 @@ async function createUserArray(ids,client) {
 
 async function stopTheGame(channel, lobbyOwnerId,client) {
     const lobbyId = channel.id;
-    setGameInactive(lobbyId);
-    deleteGameState(lobbyId);
     delete client.lobbies[lobbyOwnerId];
     await channel.delete();
 }
