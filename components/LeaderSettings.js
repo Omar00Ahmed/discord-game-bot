@@ -2,14 +2,13 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelect
 const questions = require("../public/data/questions.json")
 
 const availablePlayerOptions = [
-    { label: "1 ضد 1", value: "1v1" },
-    { label: "2 ضد 2", value: "2v2" },
-    { label: "3 ضد 3", value: "3v3" },
-    { label: "4 ضد 4", value: "4v4" },
-    { label: "5 ضد 5", value: "5v5" },
-    { label: "15 ضد 15", value: "15v15" },
+    { label: "١ ضد ١", value: "1v1" },
+    { label: "٢ ضد ٢", value: "2v2" },
+    { label: "٣ ضد ٣", value: "3v3" },
+    { label: "٤ ضد ٤", value: "4v4" },
+    { label: "٥ ضد ٥", value: "5v5" },
+    { label: "١٥ ضد ١٥", value: "15v15" },
 ];
-
 const questionCategories = Object.keys(questions).map(key => ({
     label: key.charAt(0).toUpperCase() + key.slice(1),
     value: key
