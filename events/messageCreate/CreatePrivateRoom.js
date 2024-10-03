@@ -1,8 +1,9 @@
-const { Client,ChannelType,PermissionsBitField,Message,EmbedBuilder } = require('discord.js');
+const { Client,ChannelType,PermissionsBitField,Message,EmbedBuilder,PermissionsBitField } = require('discord.js');
 const {prefix} = require("../../utils/MessagePrefix")
 const {LeaderSettings} = require("../../components/LeaderSettings");
 const { client } = require('../..');
-const {stopTheGame} = require("../../utils/gameFightsLogic")
+const {stopTheGame} = require("../../utils/gameFightsLogic");
+const { Sleep } = require('../../utils/createDelay');
 /**
  * @param {Message} message The date
  */
@@ -102,15 +103,22 @@ async function handleCreateRoom(message,client){
     }
 }
 async function handleRemoveRoom(message,client){
+
     const channelId = message.channel.id;
     const lobby = Object.values(client.lobbies).find(lobby => lobby.channelId === channelId);
+    
+    if (lobby && (message.author.id === lobby.owner || message.member.permissions.has(PermissionsBitField.Flags.ManageChannels))) {
+    } else {
+        message.reply('عذرًا، يمكن فقط لصاحب الغرفة أو المشرف إزالة الغرفة.');
+        return;
+    }
     
     if (lobby) {
         const ownerId = lobby.owner;
         console.log(ownerId);
+        await message.reply("جاري حذف الغرفة ..");
+        await Sleep(2000)
         await stopTheGame(message.channel,ownerId,client);
-    } else {
-        message.reply('لم يتم العثور على غرفة مرتبطة بهذه القناة.');
     }
     
 }
