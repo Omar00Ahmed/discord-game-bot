@@ -92,15 +92,23 @@ async function handleCreateRoom(message,client){
             .setFooter({ text: 'استمتع وحظًا سعيدًا!' });
                 
 
-        await message.reply({
+        const sentMessage1 =  await message.reply({
             embeds: [gameDescriptionEmbed],
         });
-        message.channel.send({
+        const sentMessage2 = await message.channel.send({
             content:`# قام اللاعب ${message.author} بإنشاء غرفة اضغط ${channel} للإنضمام`
         })
-        // client.lobbies[message.author.id].startTimeOut =  setTimeout(() => {
-        //     channel.send(`${client?.lobbies[message.author.id]?.playersCount}`)
-        // }, 10000);
+        // Delete messages after 10 seconds
+        setTimeout(async () => {
+            try {
+                await sentMessage1.delete();
+                await sentMessage2.delete();
+                await message.delete();
+            } catch (error) {
+                console.error('Error deleting messages:', error);
+            }
+        }, 10000);
+        
     } catch (error) {
         console.error('حدث خطأ اثناء انشاء الغرفة:', error);
         message.reply('حدث خطأ اثناء محاولة إنشاء الغرفة');

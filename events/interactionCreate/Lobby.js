@@ -1,6 +1,7 @@
 const { LeaderSettings } = require('../../components/LeaderSettings');
 const {LobbyComponent} = require("../../components/LobbyEmbed")
 const {checkCommand} = require("../../utils/checkCommands")
+
 async function execute(interaction, client) {
     if (!interaction.isButton() && !interaction.isStringSelectMenu()) return;
 
@@ -54,7 +55,7 @@ async function execute(interaction, client) {
         case 'next':
             if (lobby.step === 'complete') {
                 console.log(lobby);
-                lobby.team1 = [];
+                lobby.team1 = [lobby.owner];
                 lobby.team2 = [];
                 const {embed,components} = LobbyComponent(lobby,userId)
                 await interaction.channel.send({ embeds: [embed], components });
