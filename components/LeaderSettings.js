@@ -43,13 +43,13 @@ const LeaderSettings = (lobby, userId) => {
 
         case 'category':
             embed.setTitle('اختر فئات الأسئلة')
-                .setDescription('اختر فئة واحدة أو أكثر للأسئلة (الحد الأقصى 3)');
+                .setDescription('اختر فئة واحدة أو أكثر للأسئلة (الحد الأقصى 6)');
             
             const categorySelect = new StringSelectMenuBuilder()
                 .setCustomId(`isleaderSettings_categorySelect_${userId}`)
                 .setPlaceholder('اختر الفئات')
                 .setMinValues(1)
-                .setMaxValues(3)
+                .setMaxValues(6)
                 .addOptions(questionCategories);
             
             components.push(new ActionRowBuilder().addComponents(categorySelect));
