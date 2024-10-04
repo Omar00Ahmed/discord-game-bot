@@ -229,7 +229,7 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
             return rows;
     };
 
-    let kickMessage = await channel.send({ embeds: [embed], components: createButtons() });
+    let kickMessage = await channel.send({ embeds: [embed], components: [...createButtons()] });
 
     const filter = i => winningTeam.includes(i.user.id) && i.customId.startsWith('kick_');
     const collector = kickMessage.createMessageComponentCollector({ filter, time: 15000 });
