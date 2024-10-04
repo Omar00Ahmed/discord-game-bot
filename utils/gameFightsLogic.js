@@ -211,18 +211,23 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
     });
 
     const createButtons = () => {
-        return new ActionRowBuilder()
-            .addComponents(
-                playerNames.map(player => 
-                    new ButtonBuilder()
-                        .setCustomId(`kick_${player.playerId}`)
-                        .setLabel(`إقصاء ${player.name} (${votes[player.playerId]})`)
-                        .setStyle(ButtonStyle.Primary)
-                )
-            );
+        const rows = [];
+        for (let i = 0; i < playerNames.length; i += 5) {
+            const row = new ActionRowBuilder()
+                .addComponents(
+                    playerNames.slice(i, i + 5).map(player => 
+                        new ButtonBuilder()
+                            .setCustomId(`kick_${player.playerId}`)
+                            .setLabel(`إقصاء ${player.name} (${votes[player.playerId]})`)
+                            .setStyle(ButtonStyle.Primary)
+                    )
+                );
+            rows.push(row);
+        }
+        return rows;
     };
 
-    let kickMessage = await channel.send({ embeds: [embed], components: [createButtons()] });
+    let kickMessage = await channel.send({ embeds: [embed], components: createButtons() });
 
     const filter = i => winningTeam.includes(i.user.id) && i.customId.startsWith('kick_');
     const collector = kickMessage.createMessageComponentCollector({ filter, time: 15000 });
