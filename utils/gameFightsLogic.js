@@ -251,7 +251,7 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
             const votedPlayer = i.customId.split('_')[1];
             votes[votedPlayer]++;
             
-            await i.update({ components: [createButtons()] });
+            await i.update({ components: createButtons() });
             await i.followUp({ content: `تم التصويت على إقصاء <@${votedPlayer}>`, ephemeral: true });
 
             if (votes[votedPlayer] === winningTeam.length) {
