@@ -213,16 +213,17 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
     const createButtons = () => {
         const rows = [];
         for (let i = 0; i < playerNames.length; i += 5) {
-            const row = new ActionRowBuilder()
-                .addComponents(
-                    playerNames.slice(i, i + 5).map(player => 
-                        new ButtonBuilder()
-                            .setCustomId(`kick_${player.playerId}`)
-                            .setLabel(`إقصاء ${player.name} (${votes[player.playerId]})`)
-                            .setStyle(ButtonStyle.Primary)
-                    )
-                );
-            rows.push(row);
+            const rowComponents = playerNames.slice(i, i + 5).map(player => 
+                new ButtonBuilder()
+                    .setCustomId(`kick_${player.playerId}`)
+                    .setLabel(`إقصاء ${player.name} (${votes[player.playerId]})`)
+                    .setStyle(ButtonStyle.Primary)
+            );
+            
+            if (rowComponents.length > 0) {
+                const row = new ActionRowBuilder().addComponents(rowComponents);
+                rows.push(row);
+            }
         }
         return rows;
     };
