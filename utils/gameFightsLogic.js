@@ -214,21 +214,19 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
     });
 
     const createButtons = () => {
-        const rows = [];
-        for (let i = 0; i < playerNames.length; i += 5) {
-            const rowComponents = playerNames.slice(i, i + 5).map(player => 
+            const buttons = playerNames.map(player => 
                 new ButtonBuilder()
                     .setCustomId(`kick_${player.playerId}`)
-                    .setLabel(`إقصاء ${player.name} (${votes[player.playerId]})`)
+                    .setLabel(`إقصاء ${player.name} (${votes[player.playerId] || 0})`)
                     .setStyle(ButtonStyle.Primary)
             );
-            
-            if (rowComponents.length > 0) {
-                const row = new ActionRowBuilder().addComponents(rowComponents);
+            const rows = [];
+            for (let i = 0; i < buttons.length; i += 5) {
+                const row = new ActionRowBuilder().addComponents(buttons.slice(i, i + 5));
                 rows.push(row);
             }
-        }
-        return rows;
+        
+            return rows;
     };
 
     let kickMessage = await channel.send({ embeds: [embed], components: createButtons() });
