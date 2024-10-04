@@ -214,26 +214,35 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
     });
 
     const createButtons = () => {
-            let rows = [];
-            let row = new ActionRowBuilder();
-            playerNames.forEach((player,index)=>{
-                row.addComponents(
-                    new ButtonBuilder()
+        let rows = [];
+        let row = new ActionRowBuilder(); // Initialize the first row
+    
+        playerNames.forEach((player, index) => {
+            // Add a button for each player
+            row.addComponents(
+                new ButtonBuilder()
                     .setCustomId(`kick_${player.playerId}`)
                     .setLabel(`إقصاء ${player.name} (${votes[player.playerId] || 0})`)
                     .setStyle(ButtonStyle.Primary)
-                );
-                if ((index + 1) % 5 === 0 || index === playerNames.length - 1) {
-                    rows.push(row); // Add the row to rows array
+            );
+    
+            // Push the row after 5 buttons or when it's the last button
+            if ((index + 1) % 5 === 0 || index === playerNames.length - 1) {
+                rows.push(row); // Push the row to rows array
+    
+                // Only create a new row if there are more players to process
+                if (index + 1 < playerNames.length) {
                     row = new ActionRowBuilder(); // Create a new row for the next set of buttons
                 }
-            })
-        
-            console.log(rows);
-            return rows;
+            }
+        });
+    
+        return rows;
     };
-
+    
+    // Send the message with buttons
     let kickMessage = await channel.send({ embeds: [embed], components: createButtons() });
+    
 
     const filter = i => winningTeam.includes(i.user.id) && i.customId.startsWith('kick_');
     const collector = kickMessage.createMessageComponentCollector({ filter, time: 15000 });
