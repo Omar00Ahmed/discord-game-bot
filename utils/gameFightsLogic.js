@@ -8,6 +8,7 @@ const questions = theQuestions;
 const questionsMemo = new Map();
 
 async function startGame(interaction, lobby, client) {
+    if(client?.gameStarted[lobby?.owner])return;
     await interaction.channel.send("بدء اللعبة!");
     console.log(lobby);
     // Save the original team compositions
@@ -70,6 +71,7 @@ async function startGame(interaction, lobby, client) {
     }
 
     await announceWinner(interaction.channel, gameState, lobby);
+    client?.gameStarted[lobby?.owner] = false;
     await offerRestartOrRemove(interaction, lobby, client, originalTeam1, originalTeam2);
 
     // Clean up
