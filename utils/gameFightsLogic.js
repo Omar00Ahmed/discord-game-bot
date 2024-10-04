@@ -8,8 +8,9 @@ const questions = theQuestions;
 const questionsMemo = new Map();
 
 async function startGame(interaction, lobby, client) {
-    if(client?.gameStarted[lobby?.owner])return;
+    if(client.lobbies[lobby.owner].isStarted)return;
     await interaction.channel.send("بدء اللعبة!");
+    client.lobbies[lobby.owner].isStarted = true;
     console.log(lobby);
     // Save the original team compositions
     const originalTeam1 = [...lobby.team1];
@@ -71,7 +72,7 @@ async function startGame(interaction, lobby, client) {
     }
 
     await announceWinner(interaction.channel, gameState, lobby);
-    client?.gameStarted[lobby?.owner] = false;
+    client.lobbies[lobby.owner].isStarted = false;
     await offerRestartOrRemove(interaction, lobby, client, originalTeam1, originalTeam2);
 
     // Clean up

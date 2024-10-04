@@ -24,35 +24,25 @@ const execute = async (interaction, client) => {
             }
         }
 
-        // Add a flag to check if the game has already started
-        if (!client.gameStarted) {
-            client.gameStarted = {};
-        }
-
         // Check if the game should start
-        if (checkGameStart(lobby) && !client.gameStarted[lobbyId]) {
+        if (checkGameStart(lobby)) {
             if (client.countdownIntervals[lobbyId]) {
                 clearInterval(client.countdownIntervals[lobbyId]);
                 delete client.countdownIntervals[lobbyId];
             }
             await startGame(interaction, lobby, client);
-            client.gameStarted[lobbyId] = true;
-        } else if (lobby.countdownStartTime && !client.countdownIntervals[lobbyId] && !client.gameStarted[lobbyId]) {
+        } else if (lobby.countdownStartTime && !client.countdownIntervals[lobbyId]) {
             // If countdown is active and not already running, start the interval
             client.countdownIntervals[lobbyId] = setInterval(async () => {
                 const currentLobby = client.lobbies[lobbyId];
-                if (checkGameStart(currentLobby) && !client.gameStarted[lobbyId]) {
-                    client.gameStarted[lobbyId] = true;
+                if (checkGameStart(currentLobby)) {
                     clearInterval(client.countdownIntervals[lobbyId]);
                     delete client.countdownIntervals[lobbyId];
                     await startGame(interaction, currentLobby, client);
-                    client.gameStarted[lobbyId] = true;
-                } else if (!currentLobby.countdownStartTime || client.gameStarted[lobbyId]) {
+                } else if (!currentLobby.countdownStartTime) {
                     clearInterval(client.countdownIntervals[lobbyId]);
                     delete client.countdownIntervals[lobbyId];
-                    if (!client.gameStarted[lobbyId]) {
-                        await interaction.channel.send("Countdown canceled.");
-                    }
+                    await interaction.channel.send("Countdown canceled.");
                 } else {
                     const updatedMessage = LobbyComponent(currentLobby, lobbyId);
                     await interaction.message.edit({ embeds: [updatedMessage.embed], components: updatedMessage.components });
