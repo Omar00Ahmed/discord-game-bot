@@ -204,7 +204,7 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
                 gameState.roundsThreshold = 0;
                 resolve(interaction.user.id);
             } else {
-                await interaction.deferUpdate();
+                await interaction.reply({ content: `<@${interaction.user.id}> أجاب إجابة خاطئة!`, ephemeral: false });
                 if (answeredPlayers.size === 2) {
                     collector.stop('both_wrong');
                 }
@@ -238,7 +238,11 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
                 updatedEmbed.addFields({ name: 'النتيجة', value: 'لم يجب أحد بشكل صحيح', inline: true });
             }
 
-            await questionMessage.edit({ embeds: [updatedEmbed], components: [updatedRow] });
+            // Keep the original image URL
+            const originalImageUrl = questionMessage.embeds[0].image.url;
+            updatedEmbed.setImage(originalImageUrl);
+
+            await questionMessage.edit({ embeds: [updatedEmbed], components: [updatedRow], files: [] });
 
             if (reason === 'time' || reason === 'both_wrong') {
                 gameState.roundsThreshold++;
@@ -247,8 +251,8 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
                 resolve(winner.id);
             }
         });
-    });
-}
+})
+};
 
 
 function checkAnswer(userAnswer, correctAnswer) {
