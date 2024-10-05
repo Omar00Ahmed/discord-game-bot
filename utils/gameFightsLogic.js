@@ -112,16 +112,41 @@ function selectRandomPlayers(lobby, blacklist) {
     return [team1Player, team2Player];
 }
 
-async function askQuestion(lobby,channel, gameState, team1Player, team2Player) {
-    if(!lobby) return;
-    const randomCategory = lobby.categories[Math.floor(Math.random() * lobby.categories.length)]
+async function askQuestion(lobby, channel, gameState, team1Player, team2Player) {
+    if(!lobby) return false;
+    const randomCategory = lobby.categories[Math.floor(Math.random() * lobby.categories.length)];
     
-    const categoryLength = questionsMemo?.randomCategory || Object.keys(theQuestions[randomCategory]).length;
-    if (!questionsMemo[randomCategory]) {
-        questionsMemo[randomCategory] = categoryLength;
+    const categoryQuestions = theQuestions[randomCategory];
+    const categoryLength = Object.keys(categoryQuestions).length;
+    
+    const randomQuestionKey = Object.keys(categoryQuestions)[Math.floor(Math.random() * categoryLength)];
+    const randomQuestion = categoryQuestions[randomQuestionKey];
+    
+    const correctAnswer = randomQuestion.answer[0]; // Assuming the first answer is correct
+    const allAnswers = [correctAnswer];
+
+    // Generate 4 more unique wrong answers from other questions in the same category
+    while (allAnswers.length < 5) {
+        const wrongQuestionKey = Object.keys(categoryQuestions)[Math.floor(Math.random() * categoryLength)];
+        if (wrongQuestionKey !== randomQuestionKey) {
+            const wrongAnswer = categoryQuestions[wrongQuestionKey].answer[0];
+            if (!allAnswers.includes(wrongAnswer)) {
+                allAnswers.push(wrongAnswer);
+            }
+        }
     }
-    const randomQuestion = theQuestions[randomCategory][Object.keys(theQuestions[randomCategory])[Math.floor(Math.random() * categoryLength)]];
-    gameState.currentQuestion = randomQuestion;
+
+    // Shuffle the answers
+    const shuffledAnswers = allAnswers.sort(() => Math.random() - 0.5);
+
+    const buttons = shuffledAnswers.map((answer, index) => 
+        new ButtonBuilder()
+            .setCustomId(`answer_${index}`)
+            .setLabel(answer)
+            .setStyle(ButtonStyle.Primary)
+    );
+
+    const row = new ActionRowBuilder().addComponents(buttons);
 
     const attachment = await createImage(randomQuestion.question);
     const embed = new EmbedBuilder()
@@ -132,47 +157,70 @@ async function askQuestion(lobby,channel, gameState, team1Player, team2Player) {
             { name: 'النقاط لفريق 1', value: gameState.scores.team1.toString(), inline: true },
             { name: 'النقاط لفريق 2', value: gameState.scores.team2.toString(), inline: true }
         )
-        .setFooter({ text: 'أول إجابة صحيحة تفوز بالنقطة!' });
+        .setFooter({ text: 'اختر الإجابة الصحيحة!' });
+
+    await Sleep(3000);
     
-        
-        
-    
-    await Sleep(3000)
-    
-    try{
+    try {
         await channel.send({ 
             content: `<@${team1Player}> <@${team2Player}>, إليكم السؤال:`,
             embeds: [embed],
-            files: [await createImage(randomQuestion.question)]
+            components: [row],
+            files: [attachment]
         });
+        gameState.currentQuestion = {
+            ...randomQuestion,
+            options: shuffledAnswers,
+            correctIndex: shuffledAnswers.indexOf(correctAnswer)
+        };
         return true;
-    }catch(err){
+    } catch(err) {
+        console.error("Error sending question:", err);
         return false;
     }
 }
 
 async function waitForAnswer(channel, gameState, team1Player, team2Player) {
-    if(!channel) return;
+    if(!channel) return null;
     return new Promise((resolve) => {
-        const filter = m => m.author.id === team1Player || m.author.id === team2Player;
-        const collector = channel.createMessageCollector({ filter, time: 23000 });
+        const filter = i => 
+            (i.user.id === team1Player || i.user.id === team2Player) && 
+            i.customId.startsWith('answer_');
 
-        collector.on('collect', async (msg) => {
-            if (checkAnswer(msg.content, gameState.currentQuestion.answer)) {
+        const collector = channel.createMessageComponentCollector({ filter, time: 23000 });
+        let answeredPlayers = new Set();
+
+        collector.on('collect', async (interaction) => {
+            if (answeredPlayers.has(interaction.user.id)) {
+                await interaction.reply({ content: 'لقد أجبت بالفعل على هذا السؤال.', ephemeral: true });
+                return;
+            }
+
+            answeredPlayers.add(interaction.user.id);
+            const selectedIndex = parseInt(interaction.customId.split('_')[1]);
+            if (selectedIndex === gameState.currentQuestion.correctIndex) {
                 collector.stop('correct');
-                const winningTeam = msg.author.id === team1Player ? 'team1' : 'team2';
-                await channel.send(`إجابة صحيحة! <@${msg.author.id}> يسجل نقطة لفريق ${winningTeam === 'team1' ? 'فريق 1' : 'فريق 2'}!`);
+                const winningTeam = interaction.user.id === team1Player ? 'team1' : 'team2';
+                await interaction.reply(`إجابة صحيحة! <@${interaction.user.id}> يسجل نقطة لفريق ${winningTeam === 'team1' ? 'فريق 1' : 'فريق 2'}!`);
                 gameState.roundsThreshold = 0;
-                resolve(msg.author.id);
+                resolve(interaction.user.id);
+            } else {
+                await interaction.reply({ content: 'إجابة خاطئة!', ephemeral: true });
+                if (answeredPlayers.size === 2) {
+                    collector.stop('both_wrong');
+                }
             }
         });
 
         collector.on('end', async (collected, reason) => {
             if(!channel) return;
-            if (reason === 'time') {
-                channel.send("انتهى الوقت! لم يجب أحد بشكل صحيح.");
+            const correctAnswer = gameState.currentQuestion.options[gameState.currentQuestion.correctIndex];
+            if (reason === 'time' || reason === 'both_wrong') {
+                await channel.send(`انتهى الوقت! الإجابة الصحيحة هي: ${correctAnswer}`);
                 gameState.roundsThreshold++;
                 resolve(null);
+            } else if (reason === 'correct') {
+                await channel.send(`الإجابة الصحيحة هي: ${correctAnswer}`);
             }
         });
     });
@@ -378,4 +426,6 @@ async function stopTheGame(channel, lobbyOwnerId,client,lobby) {
 module.exports = {
     startGame,
     stopTheGame,
+    giveMessageAccess,
+    removeMessageAcess,
 };
