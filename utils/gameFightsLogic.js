@@ -2,7 +2,11 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const theQuestions = require('../public/data/questions.json');
 const { Sleep } = require('./createDelay');
 const { createImage } = require('./createImage');
-const { client } = require('..');
+
+
+
+
+
 
 const questions = theQuestions;
 const questionsMemo = new Map();
@@ -270,7 +274,7 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
             row.addComponents(
                 new ButtonBuilder()
                     .setCustomId(`kick_${player.playerId}`)
-                    .setLabel(`إقصاء ${player.name} (${votes[player.playerId] || 0})`)
+                    .setLabel(`إقصاء ${player.name} (${client.NumbersEmo.get(votes[player.playerId] || 0)})`)
                     .setStyle(ButtonStyle.Secondary)
             );
     
