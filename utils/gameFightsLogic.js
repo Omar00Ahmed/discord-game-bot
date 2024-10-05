@@ -372,7 +372,7 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
     });
 
     const filter = i => (i.customId === 'restart_game' || i.customId === 'remove_channel') && i.user.id === lobby.owner;
-    const collector = message.createMessageComponentCollector({ filter, time: 120000 });
+    const collector = message.createMessageComponentCollector({ filter });
     collector.on('collect', async i => {
         if (i.customId === 'restart_game') {
             // Restore the original teams
