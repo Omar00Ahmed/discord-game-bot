@@ -274,6 +274,7 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
             row.addComponents(
                 new ButtonBuilder()
                     .setCustomId(`kick_${player.playerId}`)
+                    .setEmoji(client.NumbersEmo.get(votes[player.playerId] || 0))
                     .setLabel(`إقصاء ${player.name} (${client.NumbersEmo.get(votes[player.playerId] || 0)})`)
                     .setStyle(ButtonStyle.Secondary)
             );

@@ -25,10 +25,7 @@ const NumbersEmogieIds = [
  * @param {Client} client 
  */
 const execute = async(client)=>{
-    client.NumbersEmo = new Map();
-    NumbersEmogieIds.forEach((emogie,index)=>{
-        client.NumbersEmo.set(index, client.emojis.cache.get(emogie))
-    })
+    client.NumbersEmo = NumbersEmogieIds;
     console.log(`All emojis loaded successfully ${client.NumbersEmo}`)
 }
 

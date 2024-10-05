@@ -1,4 +1,4 @@
-const { Client,ChannelType,PermissionsBitField,Message,EmbedBuilder,PermissionsBitField } = require('discord.js');
+const { Client,ChannelType,PermissionsBitField,Message,EmbedBuilder } = require('discord.js');
 const {prefix} = require("../../utils/MessagePrefix")
 const {LeaderSettings} = require("../../components/LeaderSettings");
 const { client } = require('../..');
