@@ -122,10 +122,9 @@ async function askQuestion(lobby, channel, gameState, team1Player, team2Player) 
     const randomQuestionKey = Object.keys(categoryQuestions)[Math.floor(Math.random() * categoryLength)];
     const randomQuestion = categoryQuestions[randomQuestionKey];
     
-    const correctAnswer = randomQuestion.answer[0]; // Assuming the first answer is correct
+    const correctAnswer = randomQuestion.answer[0];
     const allAnswers = [correctAnswer];
 
-    // Generate 4 more unique wrong answers from other questions in the same category
     while (allAnswers.length < 5) {
         const wrongQuestionKey = Object.keys(categoryQuestions)[Math.floor(Math.random() * categoryLength)];
         if (wrongQuestionKey !== randomQuestionKey) {
@@ -136,14 +135,13 @@ async function askQuestion(lobby, channel, gameState, team1Player, team2Player) 
         }
     }
 
-    // Shuffle the answers
     const shuffledAnswers = allAnswers.sort(() => Math.random() - 0.5);
 
     const buttons = shuffledAnswers.map((answer, index) => 
         new ButtonBuilder()
             .setCustomId(`answer_${index}`)
             .setLabel(answer)
-            .setStyle(ButtonStyle.Primary)
+            .setStyle(ButtonStyle.Secondary)
     );
 
     const row = new ActionRowBuilder().addComponents(buttons);
@@ -162,7 +160,7 @@ async function askQuestion(lobby, channel, gameState, team1Player, team2Player) 
     await Sleep(3000);
     
     try {
-        await channel.send({ 
+        const questionMessage = await channel.send({ 
             content: `<@${team1Player}> <@${team2Player}>, إليكم السؤال:`,
             embeds: [embed],
             components: [row],
@@ -171,7 +169,8 @@ async function askQuestion(lobby, channel, gameState, team1Player, team2Player) 
         gameState.currentQuestion = {
             ...randomQuestion,
             options: shuffledAnswers,
-            correctIndex: shuffledAnswers.indexOf(correctAnswer)
+            correctIndex: shuffledAnswers.indexOf(correctAnswer),
+            messageId: questionMessage.id
         };
         return true;
     } catch(err) {
@@ -201,11 +200,11 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
             if (selectedIndex === gameState.currentQuestion.correctIndex) {
                 collector.stop('correct');
                 const winningTeam = interaction.user.id === team1Player ? 'team1' : 'team2';
-                await interaction.reply(`إجابة صحيحة! <@${interaction.user.id}> يسجل نقطة لفريق ${winningTeam === 'team1' ? 'فريق 1' : 'فريق 2'}!`);
+                await interaction.deferUpdate();
                 gameState.roundsThreshold = 0;
                 resolve(interaction.user.id);
             } else {
-                await interaction.reply({ content: 'إجابة خاطئة!', ephemeral: true });
+                await interaction.deferUpdate();
                 if (answeredPlayers.size === 2) {
                     collector.stop('both_wrong');
                 }
@@ -214,17 +213,43 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
 
         collector.on('end', async (collected, reason) => {
             if(!channel) return;
-            const correctAnswer = gameState.currentQuestion.options[gameState.currentQuestion.correctIndex];
+            const questionMessage = await channel.messages.fetch(gameState.currentQuestion.messageId);
+            const updatedButtons = gameState.currentQuestion.options.map((answer, index) => {
+                const button = ButtonBuilder.from(questionMessage.components[0].components[index]);
+                if (index === gameState.currentQuestion.correctIndex) {
+                    button.setStyle(ButtonStyle.Success);
+                } else if (collected.some(i => parseInt(i.customId.split('_')[1]) === index)) {
+                    button.setStyle(ButtonStyle.Danger);
+                }
+                return button.setDisabled(true);
+            });
+
+            const updatedRow = new ActionRowBuilder().addComponents(updatedButtons);
+
+            let winner = null;
+            if (reason === 'correct') {
+                winner = collected.first().user;
+            }
+
+            const updatedEmbed = EmbedBuilder.from(questionMessage.embeds[0]);
+            if (winner) {
+                updatedEmbed.addFields({ name: 'الفائز', value: `<@${winner.id}>`, inline: true });
+            } else {
+                updatedEmbed.addFields({ name: 'النتيجة', value: 'لم يجب أحد بشكل صحيح', inline: true });
+            }
+
+            await questionMessage.edit({ embeds: [updatedEmbed], components: [updatedRow] });
+
             if (reason === 'time' || reason === 'both_wrong') {
-                await channel.send(`انتهى الوقت! الإجابة الصحيحة هي: ${correctAnswer}`);
                 gameState.roundsThreshold++;
                 resolve(null);
             } else if (reason === 'correct') {
-                await channel.send(`الإجابة الصحيحة هي: ${correctAnswer}`);
+                resolve(winner.id);
             }
         });
     });
 }
+
 
 function checkAnswer(userAnswer, correctAnswer) {
     return correctAnswer.some(answer => userAnswer.toLowerCase().trim() === answer.toLowerCase().trim());
