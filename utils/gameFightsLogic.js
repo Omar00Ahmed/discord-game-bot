@@ -404,7 +404,7 @@ async function createUserArray(ids,client) {
         // Fetch the user by ID
             const user = await client.users.fetch(id);
             // Push an object with the user's name and ID to the array
-            userArray.push({ name: user.tag, playerId: user.id });
+            userArray.push({ name: user.displayName, playerId: user.id });
         } catch (error) {
             console.error(`Could not fetch user with ID ${id}:`, error);
         }
