@@ -13,7 +13,7 @@ const client = new Client(
     ]
     }
 );
-
+client.SayChannels = {};
 
 // Function to dynamically load event functions from folders
 const loadEvents = (client) => {
