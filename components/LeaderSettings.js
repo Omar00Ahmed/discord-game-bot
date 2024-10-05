@@ -7,6 +7,7 @@ const availablePlayerOptions = [
     { label: "٣ ضد ٣", value: "3v3" },
     { label: "٤ ضد ٤", value: "4v4" },
     { label: "٥ ضد ٥", value: "5v5" },
+    { label: "١٠ ضد ١٠", value: "10v10" },
     { label: "١٥ ضد ١٥", value: "15v15" },
 ];
 const questionCategories = Object.keys(questions).map(key => ({
