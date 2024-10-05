@@ -271,7 +271,7 @@ async function offerKick(channel, winner, oppositeTeam, gameState, lobby, intera
                 new ButtonBuilder()
                     .setCustomId(`kick_${player.playerId}`)
                     .setLabel(`إقصاء ${player.name} (${votes[player.playerId] || 0})`)
-                    .setStyle(ButtonStyle.Primary)
+                    .setStyle(ButtonStyle.Secondary)
             );
     
             // Push the row after 5 buttons or when it's the last button
@@ -404,7 +404,7 @@ async function createUserArray(ids,client) {
         // Fetch the user by ID
             const user = await client.users.fetch(id);
             // Push an object with the user's name and ID to the array
-            userArray.push({ name: user.username, playerId: user.id });
+            userArray.push({ name: user.tag, playerId: user.id });
         } catch (error) {
             console.error(`Could not fetch user with ID ${id}:`, error);
         }
