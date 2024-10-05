@@ -128,7 +128,7 @@ async function askQuestion(lobby, channel, gameState, team1Player, team2Player) 
     // Generate 4 more unique wrong answers from other questions in the same category
     while (allAnswers.length < 5) {
         const wrongQuestionKey = Object.keys(categoryQuestions)[Math.floor(Math.random() * categoryLength)];
-        if (wrongQuestionKey !== randomQuestionKey) {
+        if (wrongQuestionKey !== randomQuestionKey && correctAnswer != categoryQuestions[wrongQuestionKey].answer[0]) {
             const wrongAnswer = categoryQuestions[wrongQuestionKey].answer[0];
             if (!allAnswers.includes(wrongAnswer)) {
                 allAnswers.push(wrongAnswer);
