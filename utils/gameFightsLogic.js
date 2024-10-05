@@ -71,7 +71,7 @@ async function startGame(interaction, lobby, client) {
         
     }
 
-    await announceWinner(interaction.channel, gameState, lobby);
+    await announceWinner(interaction.channel, gameState, lobby,originalTeam1,originalTeam2);
     client.lobbies[lobby.owner].isStarted = false;
     await offerRestartOrRemove(interaction, lobby, client, originalTeam1, originalTeam2);
 
@@ -337,9 +337,9 @@ async function kickPlayer(playerId, oppositeTeam, lobby, channel) {
     removeMessageAcess(channel,playerId)
 }
 
-async function announceWinner(channel, gameState, lobby) {
+async function announceWinner(channel, gameState, lobby,originalTeam1,originalTeam2) {
     const winningTeam = gameState.scores.team1 > gameState.scores.team2 ? 'فريق 1' : 'فريق 2';
-    const winningPlayers = winningTeam === 'فريق 1' ? lobby.team1 : lobby.team2;
+    const winningPlayers = winningTeam === 'فريق 1' ? originalTeam1 : originalTeam2;
 
     const embed = new EmbedBuilder()
         .setColor(0x00FF00)
