@@ -14,6 +14,7 @@ const client = new Client(
     }
 );
 client.SayChannels = {};
+client.gamesStarted = new Map();
 
 // Function to dynamically load event functions from folders
 const loadEvents = (client) => {

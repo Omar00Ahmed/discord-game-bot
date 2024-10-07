@@ -1,4 +1,4 @@
-const db = require("./sqliteDb");
+const db = require("./SqliteDb");
 
 async function muteUser(guild, user, muteTime) {
     const muteRole = guild.roles.cache.find(role => role.name === 'Muted');

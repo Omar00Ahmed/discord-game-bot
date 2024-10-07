@@ -10,6 +10,23 @@ const db = new sqlite3.Database('sanalikus.db',sqlite3.OPEN_READWRITE, (err) => 
 });
 
 
+// Create table to store players points by discord id
+// const createPlayersPointsTable = `
+// CREATE TABLE IF NOT EXISTS players_points (
+//     discord_id TEXT PRIMARY KEY,
+//     points INTEGER DEFAULT 0
+// );`;
+
+// db.run(createPlayersPointsTable, (err) => {
+//     if (err) {
+//         console.error('Error creating players_points table:', err);
+//     } else {
+//         console.log('players_points table created successfully.');
+//     }
+// });
+
+
+
 // db.run(`ALTER TABLE muted_users ADD COLUMN unmuted INTEGER DEFAULT 0`);
 
 

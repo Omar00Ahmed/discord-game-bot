@@ -5,6 +5,9 @@ const allowedRoles = {
     ],
     "acceptReport":[
         "1283604982796648499"
+    ],
+    "develop":[
+        "1279084642082881647"
     ]
 }
 
