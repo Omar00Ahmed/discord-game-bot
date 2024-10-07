@@ -7,7 +7,7 @@ function upsertPlayerPoints(discordId, points) {
         const query = ` INSERT INTO players_points (discord_id, points) 
                         VALUES (?, ?)
                         ON CONFLICT(discord_id) 
-                        DO UPDATE SET points = points + ?
+                        DO UPDATE SET points = ?
                         RETURNING points`;
         db.get(query, [discordId, points, points], function(err, row) {
             if (err) {
@@ -91,11 +91,45 @@ function resetAllPlayersPoints() {
     });
 }
 
+// Get top n players
+function getTopPlayers(n) {
+    return new Promise((resolve, reject) => {
+        const query = 'SELECT discord_id, points FROM players_points ORDER BY points DESC LIMIT ?';
+        db.all(query, [n], (err, rows) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve({
+                    changedRows: this.changes,
+                    topPlayers: rows
+                });
+            }
+        });
+    });
+}
+
+// Reset points for a specific player
+function resetPlayerPoints(discordId) {
+    return new Promise((resolve, reject) => {
+        const query = 'UPDATE players_points SET points = 0 WHERE discord_id = ?';
+        db.run(query, [discordId], function(err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve(this.changes);
+            }
+        });
+    });
+}
+
+
 
 module.exports = {
     upsertPlayerPoints,
     getPlayerPoints,
     deletePlayerPoints,
     addPlayerPoints,
-    resetAllPlayersPoints
+    resetAllPlayersPoints,
+    getTopPlayers,
+    resetPlayerPoints
 };

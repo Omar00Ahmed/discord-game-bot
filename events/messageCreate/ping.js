@@ -139,7 +139,7 @@ module.exports = {
               // First wire selection
               playerState.selectedWire = wireIndex;
               playerState.selectedSide = side;
-              gameEmbed.data.fields[1].value = `${wireColor} على جانب ${side === 'left' ? 'الأيسر' : 'الأيمن'} تم اختياره بواسطة ${i.user.username}`;
+              gameEmbed.data.fields[1].value = `${wireColor} على جانب ${side === 'left' ? 'الأيسر' : 'الأيمن'} تم اختياره بواسطة <@${i.user.id}>`;
               await i.update({ embeds: [gameEmbed], components: generateButtons() });
               return;
             }
@@ -159,32 +159,15 @@ module.exports = {
                 playerState.usedWires[playerState.selectedSide].add(playerState.selectedWire);
                 playerState.usedWires[side].add(wireIndex);
 
-                gameEmbed.data.fields[1].value = `${i.user.username} قام بتوصيل أسلاك ${wireColor} بشكل صحيح!`;
+                gameEmbed.data.fields[1].value = `<@${i.user.id}> قام بتوصيل أسلاك ${wireColor} بشكل صحيح!`;
 
                 if (playerState.connectedPairs === 4) {
-                  gameEmbed.setDescription(`${i.user.username} يفوز! لقد قام بتوصيل جميع الأسلاك الأربعة أولاً!`);
-                  // const newPoints = await addPlayerPoints(i.user.id,1);
+                  gameEmbed.setDescription(`<@${i.user.id}> يفوز! لقد قام بتوصيل جميع الأسلاك الأربعة أولاً!`);
                   
-                  // const pointsButton = new ButtonBuilder()
-                  //   .setCustomId('points')
-                  //   .setLabel(`النقاط : ${newPoints}`)
-                  //   .setStyle(ButtonStyle.Secondary)
-                  //   .setEmoji("💎")
-                  //   .setDisabled(true);
-
-                  // const row = new ActionRowBuilder()
-                  //   .addComponents(pointsButton);
-                  
-                  // await initialMessage.channel.send({content:`<@${i.user.id}> قد ربح الجولة` , components: [row] });
-                                    
-                  
-                  // initialMessage.channel.send({
-                  //   content:`<@${i.user.id}> won the game`
-                  // })
                   collector.stop('win');
                 }
               } else {
-                gameEmbed.data.fields[1].value = `${i.user.username} قام بتوصيل خاطئ للأسلاك!`;
+                gameEmbed.data.fields[1].value = `<@${i.user.id}> قام بتوصيل خاطئ للأسلاك!`;
               }
 
               playerState.selectedWire = null;
@@ -226,7 +209,7 @@ module.exports = {
         
             // Announce the winner in the channel
             await initialMessage.channel.send({
-              content: `<@${winner.id}> قد ربح الجولة`,
+              content: `🥇- <@${winner.id}>, فاز بالجولة !`,
               components: [row],
             });
           } else if (reason === 'timeout') {
