@@ -168,10 +168,10 @@ module.exports = {
 
                   const winnerEmbed = new EmbedBuilder()
                     .setColor('#00FF00')
-                    .setTitle('🎉 Winner Announcement 🎉')
-                    .setDescription(`Congratulations ${i.user.username}!`)
+                    .setTitle('🎉 اشعار الرابح 🎉')
+                    .setDescription(`تهانينا ${i.user.username}!`)
                     .addFields(
-                      { name: 'Winner', value: `<@${i.user.id}>`, inline: true }
+                      { name: 'الرابح', value: `<@${i.user.id}>`, inline: true }
                     )
                     .setTimestamp();
                   
@@ -185,7 +185,7 @@ module.exports = {
                   const row = new ActionRowBuilder()
                     .addComponents(pointsButton);
                   
-                  await initialMessage.channel.send({content:`<@${i.user.id}> won the game` , embeds: [winnerEmbed], components: [row] });
+                  await initialMessage.channel.send({content:`<@${i.user.id}> قد ربح الجولة` , embeds: [winnerEmbed], components: [row] });
                                     
                   
                   // initialMessage.channel.send({
