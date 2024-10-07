@@ -76,7 +76,7 @@ module.exports = {
             .setLabel(rightWires[i])
             .setStyle(ButtonStyle.Secondary);
 
-          const middleButtons = Array(3).fill().map((_, j) =>
+          const middleButtons = Array(2).fill().map((_, j) =>
             new ButtonBuilder()
               .setCustomId(`middle_${i}_${j}`)
               .setLabel(' ` ')
@@ -163,29 +163,19 @@ module.exports = {
 
                 if (playerState.connectedPairs === 4) {
                   gameEmbed.setDescription(`${i.user.username} يفوز! لقد قام بتوصيل جميع الأسلاك الأربعة أولاً!`);
-                  const newPoints = await addPlayerPoints(i.user.id,1);
+                  // const newPoints = await addPlayerPoints(i.user.id,1);
                   
+                  // const pointsButton = new ButtonBuilder()
+                  //   .setCustomId('points')
+                  //   .setLabel(`النقاط : ${newPoints}`)
+                  //   .setStyle(ButtonStyle.Secondary)
+                  //   .setEmoji("💎")
+                  //   .setDisabled(true);
 
-                  const winnerEmbed = new EmbedBuilder()
-                    .setColor('#00FF00')
-                    .setTitle('🎉 اشعار الرابح 🎉')
-                    .setDescription(`تهانينا ${i.user.username}!`)
-                    .addFields(
-                      { name: 'الرابح', value: `<@${i.user.id}>`, inline: true }
-                    )
-                    .setTimestamp();
+                  // const row = new ActionRowBuilder()
+                  //   .addComponents(pointsButton);
                   
-                  const pointsButton = new ButtonBuilder()
-                    .setCustomId('points')
-                    .setLabel(`النقاط : ${newPoints}`)
-                    .setStyle(ButtonStyle.Secondary)
-                    .setEmoji("💎")
-                    .setDisabled(true);
-
-                  const row = new ActionRowBuilder()
-                    .addComponents(pointsButton);
-                  
-                  await initialMessage.channel.send({content:`<@${i.user.id}> قد ربح الجولة` , embeds: [winnerEmbed], components: [row] });
+                  // await initialMessage.channel.send({content:`<@${i.user.id}> قد ربح الجولة` , components: [row] });
                                     
                   
                   // initialMessage.channel.send({
@@ -215,13 +205,38 @@ module.exports = {
 
         collector.on('end', async (collected, reason) => {
           clearInterval(timer);
-          if (reason === 'timeout') {
+          client.gamesStarted.set("wires", false);
+        
+          if (reason === 'win') {
+            // Assuming the winner is the user who made the correct move last
+            const winner = collected.last().user;
+        
+            // Award the winner points
+            const newPoints = await addPlayerPoints(winner.id, 1);
+        
+            // Create a points button to display the winner's new points
+            const pointsButton = new ButtonBuilder()
+              .setCustomId('points')
+              .setLabel(`النقاط : ${newPoints}`)
+              .setStyle(ButtonStyle.Secondary)
+              .setEmoji("💎")
+              .setDisabled(true);
+        
+            const row = new ActionRowBuilder().addComponents(pointsButton);
+        
+            // Announce the winner in the channel
+            await initialMessage.channel.send({
+              content: `<@${winner.id}> قد ربح الجولة`,
+              components: [row],
+            });
+          } else if (reason === 'timeout') {
             gameEmbed.setDescription('انتهى الوقت! انتهت اللعبة بدون فائز.');
           }
+        
           gameEmbed.data.fields[0].value = '0 ثانية';
           gameEmbed.data.fields[1].value = 'اللعبة انتهت';
+        
           await initialMessage.edit({ embeds: [gameEmbed], components: [] }).catch(console.error);
-          client.gamesStarted.set("wires",false)
         });
       } catch (error) {
         console.error('Error starting the wire game:', error);
