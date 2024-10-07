@@ -6,7 +6,7 @@ const GAME_DURATION = 20000; // 1 minute in milliseconds
 const WIRE_COLORS = ['🔴', '🟢', '🔵', '🟡']; // Emoji representations of colors
 
 const allowedChnanels = [
-  "1277694414935953564",
+  "1292642149493510184",
   "1290377082123194428"
 ]
 
