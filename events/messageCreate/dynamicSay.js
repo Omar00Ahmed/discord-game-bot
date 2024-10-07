@@ -12,7 +12,7 @@ const execute = async (message,client) => {
     
     const receiverChannel = message.guild.channels.cache.get(recieverChannel);
     
-    if(message.channel.id != receiverChannel.id) return
+    if(message.channel.id != receiverChannel) return
 
     if(message.content.startsWith(`${prefix}setwnsa`)){
         const channel = message.mentions.channels.first();
