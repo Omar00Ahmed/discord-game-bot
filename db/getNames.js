@@ -1,8 +1,6 @@
 const db = require("./SqliteDb");
 
 
-
-
 const selectAllNames = () => {
     return new Promise((resolve, reject) => {
         db.all("SELECT * FROM sanalikus", [], (err, rows) => {
