@@ -2,8 +2,12 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const theQuestions = require('../public/data/questions.json');
 const { Sleep } = require('./createDelay');
 const { createImage } = require('./createImage');
-const { LeaderSettings } = require('../components/LeaderSettings');
-const { LobbyComponent } = require('../components/LobbyEmbed');
+const {LeaderSettings} = require("../components/LeaderSettings");
+const {LobbyComponent} = require("../components/LobbyEmbed")
+
+
+
+
 
 
 const questions = theQuestions;
@@ -208,6 +212,7 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
                 resolve(interaction.user.id);
             } else {
                 await interaction.reply({ content: 'إجابة خاطئة!', ephemeral: true });
+                gameState.roundsThreshold = 0;
                 if (answeredPlayers.size === 2) {
                     collector.stop('both_wrong');
                 }
@@ -368,8 +373,8 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
                 .setLabel('إعادة تشغيل اللعبة')
                 .setStyle(ButtonStyle.Primary),
             new ButtonBuilder()
-                .setCustomId('change_settings')
-                .setLabel('تغيير الإعدادات')
+                .setCustomId('edit_settings')
+                .setLabel('تعديل الإعدادات')
                 .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId('remove_channel')
@@ -382,9 +387,9 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
         components: [row]
     });
 
-    const filter = i => ['restart_game', 'change_settings', 'remove_channel'].includes(i.customId) && i.user.id === lobby.owner;
+    const filter = i => ['restart_game', 'edit_settings', 'remove_channel'].includes(i.customId) && i.user.id === lobby.owner;
+
     const collector = message.createMessageComponentCollector({ filter, time: 120000 });
-    
     collector.on('collect', async i => {
         if (i.customId === 'restart_game') {
             // Restore the original teams
@@ -392,88 +397,28 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
             lobby.team2 = [...originalTeam2];
 
             await i.update({ content: 'جاري إعادة تشغيل اللعبة...', components: [] });
-            await sendLobbyJoining(interaction, lobby, client);
-        } else if (i.customId === 'change_settings') {
-            await i.update({ content: 'جاري فتح إعدادات اللعبة...', components: [] });
-            await changeGameSettings(interaction, lobby, client);
+            await startGame(interaction, lobby, client); // Restart the game
+        } else if (i.customId === 'edit_settings') {
+            lobby.step = 'players';
+            const { embed, components } = LeaderSettings(lobby, lobby.owner);
+            await i.update({ embeds: [embed], components });
         } else if (i.customId === 'remove_channel') {
             await i.update({ content: 'جاري إزالة القناة...', components: [] });
             await stopTheGame(interaction.channel, lobby.owner, client);
         }
     });
 
-    collector.on('end', collected => {
+    collector.on('end', async collected => {
         if (collected.size === 0) {
             if (!message) return;
-            message.edit({ content: 'لم يتم اختيار أي خيار. سيتم حذف الغرفة بشكل تلقائي', components: [] });
+            await message.edit({ content: 'لم يتم اختيار اي اختيار سيتم حذف الغرفة بشكل تلقائي', components: [] });
             try {
                 stopTheGame(interaction.channel, lobby.owner, client);
-            } catch(err) {
+            } catch (err) {
                 console.error(`Error stopping the game:`, err);
             }
         }
     });
-}
-
-async function changeGameSettings(interaction, lobby, client) {
-    // Reset lobby settings
-    lobby.step = 'players';
-    lobby.playersCount = undefined;
-    lobby.categories = undefined;
-    lobby.kickAllowed = undefined;
-    lobby.kickRounds = undefined;
-    lobby.winningPoints = undefined;
-
-    const { embed, components } = LeaderSettings(lobby, lobby.owner);
-    const settingsMessage = await interaction.channel.send({ embeds: [embed], components });
-
-    const filter = i => i.user.id === lobby.owner;
-    const collector = settingsMessage.createMessageComponentCollector({ filter });
-
-    collector.on('collect', async i => {
-        const [action, userId, value] = i.customId.split("_");
-
-        switch (action) {
-            case 'playerSelect':
-                lobby.playersCount = i.values[0];
-                lobby.step = 'category';
-                break;
-            case 'categorySelect':
-                lobby.categories = i.values;
-                lobby.step = 'kickAllowed';
-                break;
-            case 'kickAllowed':
-                lobby.kickAllowed = value === 'true';
-                lobby.step = lobby.kickAllowed ? 'kickRounds' : 'winningPoints';
-                break;
-            case 'kickRounds':
-                lobby.kickRounds = parseInt(value);
-                lobby.step = 'winningPoints';
-                break;
-            case 'winningPointsSelect':
-                lobby.winningPoints = parseInt(i.values[0]);
-                lobby.step = 'complete';
-                break;
-            case 'next':
-                if (lobby.step === 'complete') {
-                    collector.stop();
-                    await sendLobbyJoining(interaction, lobby, client);
-                    return;
-                }
-                break;
-        }
-
-        const updatedSettings = LeaderSettings(lobby, userId);
-        await i.update({ embeds: [updatedSettings.embed], components: updatedSettings.components });
-    });
-}
-
-async function sendLobbyJoining(interaction, lobby, client) {
-    lobby.team1 = [lobby.owner];
-    lobby.team2 = [];
-    const { embed, components } = LobbyComponent(lobby, lobby.owner);
-    await interaction.channel.send({ embeds: [embed], components, content: "|| @everyone ||" });
-    await interaction.channel.send("اللعبة جاهزة للانضمام! استخدم الأزرار أدناه للانضمام إلى فريق.");
 }
 
 
@@ -494,6 +439,7 @@ async function createUserArray(ids,client) {
 
     return userArray;
 }
+
 
 
 async function stopTheGame(channel, lobbyOwnerId,client,lobby) {
