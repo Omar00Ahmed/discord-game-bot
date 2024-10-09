@@ -22,7 +22,7 @@ async function execute(message,client) {
         case 'قتال':
             handleCreateRoom(message,client);
             break;
-        case 'حذف_غرفة':
+        case 'هدنة':
             handleRemoveRoom(message,client);
             break;
     
@@ -48,14 +48,11 @@ async function handleCreateRoom(message,client){
         const channel = await message.guild.channels.create({
             name: channelName,
             type: ChannelType.GuildText,
-            parent:"1291122949432148073",
+            // parent:"1291122949432148073",
+            parent:"1283954816946667610",
             permissionOverwrites: [
                 {
                     id: message.guild.id, // Deny access to @everyone
-                    deny: [PermissionsBitField.Flags.SendMessages],
-                },
-                {
-                    id: message.author.id, // Grant access to the player
                     allow: [PermissionsBitField.Flags.SendMessages],
                 },
             ],

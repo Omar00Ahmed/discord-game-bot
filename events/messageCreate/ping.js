@@ -92,6 +92,8 @@ module.exports = {
 
       const updatePlayersProgress = () => {
         const playerProgress = Object.keys(players)
+          .sort((a, b) => players[b].connectedPairs - players[a].connectedPairs)
+          .slice(0, 3)
           .map(playerId => {
             const player = players[playerId];
             const playerName = message.client.users.cache.get(playerId).username;

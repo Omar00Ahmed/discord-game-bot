@@ -10,3 +10,7 @@ const execute = async message => {
         await startGameCommand.execute(message, args);
     }
 }
+
+module.exports = {
+    execute
+};

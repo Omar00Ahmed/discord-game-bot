@@ -10,7 +10,7 @@ const {
 } = require("../../db/playersScore");
 const { checkIfCanMute } = require("../../utils/WhoCanMute");
 
-const allowedChannels = ["1291162640001007672"];
+const allowedChannels = ["1291162640001007672","1293358588366028931"];
 
 /**
  * @param {Message} message The message object
@@ -24,19 +24,23 @@ const execute = async (message, client) => {
     const command = args.shift().toLowerCase();
 
     // Check if the command is issued in an allowed channel
-    if (!allowedChannels.includes(message.channelId)) {
-        return message.reply(`يمكن كتابة هذا الامر فقط في <#${allowedChannels[0]}> | ❌`);
-    }
+    
 
     // Switch case to handle commands
     switch (command) {
         case "نقاط":
+            if (!allowedChannels.includes(message.channelId)) {
+                return message.reply(`يمكن كتابة هذا الامر فقط في <#${allowedChannels[0]}> | ❌`);
+            }
             await handlePoints(message);
             break;
         case "تصفير":
             await handleResetPoints(message);
             break;
         case "الافضل":
+            if (!["1293358588366028931"].includes(message.channelId)) {
+                return message.reply(`يمكن كتابة هذا الامر فقط في <#${["1293358588366028931"][0]}> | ❌`);
+            }
             await handleTopPlayers(message);
             break;
         case "اجعل":
@@ -96,7 +100,7 @@ async function handleResetPoints(message) {
 }
 
 async function handleTopPlayers(message) {
-    if (checkIfCanUse(message)) {
+    
         const { topPlayers } = await getTopPlayers(10);
         const topThreeEmbed = new EmbedBuilder()
             .setColor('#FFD700')
@@ -112,9 +116,7 @@ async function handleTopPlayers(message) {
             .setFooter({ text: 'Wansa' });
 
         await message.channel.send({ embeds: [topThreeEmbed] });
-    } else {
-        await message.reply('ليس لديك صلاحية استخدام هذا الامر');
-    }
+    
 }
 
 async function handleSetPoints(message, args) {

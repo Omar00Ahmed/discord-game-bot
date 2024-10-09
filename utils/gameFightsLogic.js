@@ -2,10 +2,8 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('
 const theQuestions = require('../public/data/questions.json');
 const { Sleep } = require('./createDelay');
 const { createImage } = require('./createImage');
-
-
-
-
+const { LeaderSettings } = require('../components/LeaderSettings');
+const { LobbyComponent } = require('../components/LobbyEmbed');
 
 
 const questions = theQuestions;
@@ -30,7 +28,7 @@ async function startGame(interaction, lobby, client) {
     };
 
     // Give access to send messages for all team members
-    await giveMessageAccess(interaction.channel, [...lobby.team1, ...lobby.team2]);
+    // await giveMessageAccess(interaction.channel, [...lobby.team1, ...lobby.team2]);
 
     while (!gameState.gameEnded) {
         const [team1Player, team2Player] = selectRandomPlayers(lobby, gameState.blacklist);
@@ -62,7 +60,7 @@ async function startGame(interaction, lobby, client) {
                 // gameState.scores.team1 = lobby.winningPoints;
             }
         }else{
-            if(gameState.roundsThreshold == 3){
+            if(gameState.roundsThreshold == 5){
                 
                 await interaction.channel.send("لم يتم الاجإبة ل 5 ادوار متتالية , سيتم ايقاف اللعبة");
                 gameState.gameEnded = true;
@@ -339,17 +337,21 @@ async function kickPlayer(playerId, oppositeTeam, lobby, channel) {
     const teamToUpdate = oppositeTeam === lobby.team1 ? 'team1' : 'team2';
     lobby[teamToUpdate] = lobby[teamToUpdate].filter(p => p !== playerId);
     await channel.send(`<@${playerId}> تم إقصاؤه من اللعبة!`);
-    removeMessageAcess(channel,playerId)
+    // removeMessageAcess(channel,playerId)
 }
 
 async function announceWinner(channel, gameState, lobby,originalTeam1,originalTeam2) {
     const winningTeam = gameState.scores.team1 > gameState.scores.team2 ? 'فريق 1' : 'فريق 2';
     const winningPlayers = winningTeam === 'فريق 1' ? originalTeam1 : originalTeam2;
 
+    const winnersList = winningPlayers.map(id => `<@${id}>`).join(', ');
+
+    await channel.send(`الفائزون: ${winnersList}`);
+
     const embed = new EmbedBuilder()
         .setColor(0x00FF00)
         .setTitle('انتهت اللعبة!')
-        .setDescription(`${winningTeam} يفوز!\nتهانينا للفائزين: ${winningPlayers.map(id => `<@${id}>`).join(', ')}!`)
+        .setDescription(`${winningTeam} يفوز!`)
         .addFields(
             { name: 'النقاط لفريق 1', value: gameState.scores.team1.toString(), inline: true },
             { name: 'النقاط لفريق 2', value: gameState.scores.team2.toString(), inline: true }
@@ -366,18 +368,23 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
                 .setLabel('إعادة تشغيل اللعبة')
                 .setStyle(ButtonStyle.Primary),
             new ButtonBuilder()
+                .setCustomId('change_settings')
+                .setLabel('تغيير الإعدادات')
+                .setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
                 .setCustomId('remove_channel')
                 .setLabel('مسح الغرفة')
                 .setStyle(ButtonStyle.Danger)
         );
 
     const message = await interaction.channel.send({
-        content: 'عايز تلعب تاني؟',
+        content: 'ماذا تريد أن تفعل الآن؟',
         components: [row]
     });
 
-    const filter = i => (i.customId === 'restart_game' || i.customId === 'remove_channel') && i.user.id === lobby.owner;
-    const collector = message.createMessageComponentCollector({ filter });
+    const filter = i => ['restart_game', 'change_settings', 'remove_channel'].includes(i.customId) && i.user.id === lobby.owner;
+    const collector = message.createMessageComponentCollector({ filter, time: 120000 });
+    
     collector.on('collect', async i => {
         if (i.customId === 'restart_game') {
             // Restore the original teams
@@ -385,20 +392,90 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
             lobby.team2 = [...originalTeam2];
 
             await i.update({ content: 'جاري إعادة تشغيل اللعبة...', components: [] });
-            await startGame(interaction, lobby, client); // Restart the game
+            await sendLobbyJoining(interaction, lobby, client);
+        } else if (i.customId === 'change_settings') {
+            await i.update({ content: 'جاري فتح إعدادات اللعبة...', components: [] });
+            await changeGameSettings(interaction, lobby, client);
         } else if (i.customId === 'remove_channel') {
             await i.update({ content: 'جاري إزالة القناة...', components: [] });
-            await stopTheGame(interaction.channel, lobby.owner,client); // Stop the Discord channel and remove the lobby from the client's lobbies map
+            await stopTheGame(interaction.channel, lobby.owner, client);
         }
     });
 
     collector.on('end', collected => {
         if (collected.size === 0) {
-            if(!message )return;
-            // message.edit({ content: 'انتهى الوقت، لم يتم اختيار أي خيار.', components: [] });
+            if (!message) return;
+            message.edit({ content: 'لم يتم اختيار أي خيار. سيتم حذف الغرفة بشكل تلقائي', components: [] });
+            try {
+                stopTheGame(interaction.channel, lobby.owner, client);
+            } catch(err) {
+                console.error(`Error stopping the game:`, err);
+            }
         }
     });
 }
+
+async function changeGameSettings(interaction, lobby, client) {
+    // Reset lobby settings
+    lobby.step = 'players';
+    lobby.playersCount = undefined;
+    lobby.categories = undefined;
+    lobby.kickAllowed = undefined;
+    lobby.kickRounds = undefined;
+    lobby.winningPoints = undefined;
+
+    const { embed, components } = LeaderSettings(lobby, lobby.owner);
+    const settingsMessage = await interaction.channel.send({ embeds: [embed], components });
+
+    const filter = i => i.user.id === lobby.owner;
+    const collector = settingsMessage.createMessageComponentCollector({ filter });
+
+    collector.on('collect', async i => {
+        const [action, userId, value] = i.customId.split("_");
+
+        switch (action) {
+            case 'playerSelect':
+                lobby.playersCount = i.values[0];
+                lobby.step = 'category';
+                break;
+            case 'categorySelect':
+                lobby.categories = i.values;
+                lobby.step = 'kickAllowed';
+                break;
+            case 'kickAllowed':
+                lobby.kickAllowed = value === 'true';
+                lobby.step = lobby.kickAllowed ? 'kickRounds' : 'winningPoints';
+                break;
+            case 'kickRounds':
+                lobby.kickRounds = parseInt(value);
+                lobby.step = 'winningPoints';
+                break;
+            case 'winningPointsSelect':
+                lobby.winningPoints = parseInt(i.values[0]);
+                lobby.step = 'complete';
+                break;
+            case 'next':
+                if (lobby.step === 'complete') {
+                    collector.stop();
+                    await sendLobbyJoining(interaction, lobby, client);
+                    return;
+                }
+                break;
+        }
+
+        const updatedSettings = LeaderSettings(lobby, userId);
+        await i.update({ embeds: [updatedSettings.embed], components: updatedSettings.components });
+    });
+}
+
+async function sendLobbyJoining(interaction, lobby, client) {
+    lobby.team1 = [lobby.owner];
+    lobby.team2 = [];
+    const { embed, components } = LobbyComponent(lobby, lobby.owner);
+    await interaction.channel.send({ embeds: [embed], components, content: "|| @everyone ||" });
+    await interaction.channel.send("اللعبة جاهزة للانضمام! استخدم الأزرار أدناه للانضمام إلى فريق.");
+}
+
 
 
 async function createUserArray(ids,client) {
@@ -419,13 +496,10 @@ async function createUserArray(ids,client) {
 }
 
 
-
 async function stopTheGame(channel, lobbyOwnerId,client,lobby) {
     const lobbyId = channel.id;
     delete client.lobbies[lobbyOwnerId];
     await channel.delete();
-    
-
 }
 
 module.exports = {
