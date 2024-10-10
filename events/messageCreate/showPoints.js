@@ -70,8 +70,8 @@ async function handlePoints(message) {
     await message.channel.send({ embeds: [embed] });
 }
 
-async function announceChannel(message){
-   const repliedMessage =  await message.reply(`يمكن كتابة هذا الامر فقط في <#${allowedChannels[0]}> | ❌`);
+async function announceChannel(message,channel){
+   const repliedMessage =  await message.reply(`يمكن كتابة هذا الامر فقط في <#${channel || allowedChannels[0]}> | ❌`);
    setTimeout(async () => {
     await message.delete();
     await repliedMessage.delete();

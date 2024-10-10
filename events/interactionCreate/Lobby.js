@@ -52,31 +52,30 @@ async function execute(interaction, client) {
             lobby.step = 'complete';
             break;
 
-            case 'next':
-                if (lobby.step === 'complete') {
-                    console.log(lobby);
-                    lobby.team1 = [lobby.owner];
-                    lobby.team2 = [];
-                    const { embed, components } = LobbyComponent(lobby, userId);
-                    await interaction.channel.send({ embeds: [embed], components, content: "|| @everyone ||" });
-                    return interaction.update({
-                        content: 'Settings are complete. Starting the game...',
-                        embeds: [
-                            {
-                                title: 'Game Settings',
-                                fields: [
-                                    { name: 'Players', value: lobby.playersCount || 'Not set' },
-                                    { name: 'Categories', value: lobby.categories ? lobby.categories.join(', ') : 'Not set' },
-                                    { name: 'Kick Allowed', value: lobby.kickAllowed ? 'Yes' : 'No' },
-                                    { name: 'Kick Rounds', value: lobby.kickRounds?.toString() || 'Not set' },
-                                    { name: 'Winning Points', value: lobby.winningPoints?.toString() || 'Not set' }
-                                ]
-                            }
-                        ],
-                        components: []
-                    });
-                }
-                break;            
+        case 'next':
+            if (lobby.step === 'complete') {
+                console.log(lobby);
+                lobby.team1 = [lobby.owner];
+                lobby.team2 = [];
+                const {embed,components} = LobbyComponent(lobby,userId)
+                await interaction.channel.send({ embeds: [embed], components,content:`# يمكنك حذف الغرفة في اي وقت بإستخدام الرسالة -هدنة \n|| @everyone ||` });
+                return interaction.update({ 
+                    content: 'Settings are complete. Starting the game...', 
+                    embeds: [
+                        {
+                        title: 'Game Settings',
+                        fields: [
+                            { name: 'Players', value: lobby.playersCount || 'Not set' },
+                            { name: 'Categories', value: lobby.categories ? lobby.categories.join(', ') : 'Not set' },
+                            { name: 'Kick Allowed', value: lobby.kickAllowed ? 'Yes' : 'No' },
+                            { name: 'Kick Rounds', value: lobby.kickRounds?.toString() || 'Not set' }
+                        ]
+                        }
+                    ],
+                    components: [] 
+                });
+            }
+            break;  
         case 'cancelbutton':
             if (client?.lobbies[userId]?.startTimeOut) {
                 clearTimeout(client.lobbies[userId].startTimeOut);

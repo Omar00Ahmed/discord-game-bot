@@ -50,7 +50,7 @@ async function handleCreateRoom(message,client){
             name: channelName,
             type: ChannelType.GuildText,
             // parent:"1291122949432148073",
-            parent:"1283954816946667610",
+            parent:"1291122949432148073",
             permissionOverwrites: [
                 {
                     id: message.guild.id, // Deny access to @everyone
