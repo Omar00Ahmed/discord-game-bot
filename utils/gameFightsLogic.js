@@ -8,13 +8,9 @@ const {LobbyComponent} = require("../components/LobbyEmbed")
 
 
 const {
-    getPlayerPoints,
-    resetAllPlayersPoints,
-    resetPlayerPoints,
-    getTopPlayers,
-    upsertPlayerPoints,
     addPlayerPoints
 } = require("../db/playersScore");
+
 
 
 const questions = theQuestions;
@@ -48,12 +44,12 @@ async function startGame(interaction, lobby, client) {
             gameState.blacklist.clear(); // Reset blacklist if all players have played
             continue;
         }
-        interaction.channel.send(`السؤال التالي بعد 2 ثواني .. <@${team1Player}> - <@${team2Player}>`)
-        await Sleep(2000)
+        interaction.channel.send(`السؤال التالي بعد ثانية .. <@${team1Player}> - <@${team2Player}>`)
+        await Sleep(1000)
 
         const isQuestionSent = await askQuestion(lobby,interaction.channel, gameState, team1Player, team2Player);
         if(!isQuestionSent) return;
-        const winner = await waitForAnswer(interaction.channel, gameState, team1Player, team2Player);
+        const winner = await waitForAnswer(interaction.channel, gameState, team1Player, team2Player,lobby,client);
         gameState.blacklist.add(team1Player).add(team2Player);
         if (winner) {
             const winningTeam = lobby.team1.includes(winner) ? 'team1' : 'team2';
@@ -171,8 +167,6 @@ async function askQuestion(lobby, channel, gameState, team1Player, team2Player) 
             { name: 'النقاط لفريق 2', value: gameState.scores.team2.toString(), inline: true }
         )
         .setFooter({ text: 'اختر الإجابة الصحيحة!' });
-
-    await Sleep(3000);
     
     try {
         await channel.send({ 
@@ -193,7 +187,7 @@ async function askQuestion(lobby, channel, gameState, team1Player, team2Player) 
     }
 }
 
-async function waitForAnswer(channel, gameState, team1Player, team2Player) {
+async function waitForAnswer(channel, gameState, team1Player, team2Player,lobby,client) {
     if(!channel) return null;
     return new Promise((resolve) => {
         const filter = i => 
@@ -241,12 +235,41 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
         collector.on('end', async (collected, reason) => {
             if(!channel) return;
             const correctAnswer = gameState.currentQuestion.options[gameState.currentQuestion.correctIndex];
-            if (reason === 'time' || reason === 'both_wrong') {
-                await channel.send(`انتهى الوقت! الإجابة الصحيحة هي: ${correctAnswer}`);
-                gameState.roundsThreshold++;
-                resolve(null);
-            } else if (reason === 'correct') {
-                await channel.send(`الإجابة الصحيحة هي: ${correctAnswer}`);
+            if (reason === 'time' || reason === 'both_wrong' || reason === 'correct') {
+                if (reason === 'time' || reason === 'both_wrong') {
+                    await channel.send(`انتهى الوقت! الإجابة الصحيحة هي: ${correctAnswer}`);
+                    gameState.roundsThreshold++;
+                } else if (reason === 'correct') {
+                    await channel.send(`الإجابة الصحيحة هي: ${correctAnswer}`);
+                }
+
+                const winnerPlayer = reason === 'correct' ? collected.first().user.id : null;
+                const loserPlayer = reason === 'correct' ? (winnerPlayer === team1Player ? team2Player : team1Player) : null;
+
+                if (client?.lobbies[lobby.owner]?.susPlayers && winnerPlayer) {
+                    client.lobbies[lobby.owner].susPlayers[winnerPlayer] = 0;
+                }
+
+                if (lobby.playersCount === "1v1" && loserPlayer) {
+                    if (!answeredPlayers.has(loserPlayer)) {
+                        if (!client?.lobbies[lobby.owner]?.susPlayers) {
+                            if (!client.lobbies[lobby.owner].susPlayers) {
+                                client.lobbies[lobby.owner].susPlayers = {};
+                            }
+                            client.lobbies[lobby.owner].susPlayers[loserPlayer] = 1;
+                        } else {
+                            client.lobbies[lobby.owner].susPlayers[loserPlayer]++;
+                            if (client.lobbies[lobby.owner].susPlayers[loserPlayer] >= 5) {
+                                await channel.send(`لم يقم هذا الشخص بالإجابة ل 4 ادوار متتالية <@${loserPlayer}> سيتم حذف الغرفة بعد 3 ثواني`);
+                                await Sleep(3000);
+                                await stopTheGame(channel, lobby.owner, client);
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                resolve(winnerPlayer);
             }
         });
     });
@@ -419,6 +442,7 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
             await startGame(interaction, lobby, client); // Restart the game
         } else if (i.customId === 'edit_settings') {
             lobby.step = 'players';
+            client.lobbies[lobby.owner].firstCheck = true;
             const { embed, components } = LeaderSettings(lobby, lobby.owner);
             await i.update({ embeds: [embed], components });
         } else if (i.customId === 'remove_channel') {
@@ -430,11 +454,11 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
     collector.on('end', async collected => {
         if (collected.size === 0) {
             if (!message) return;
-            await message.edit({ content: 'لم يتم اختيار اي اختيار سيتم حذف الغرفة بشكل تلقائي', components: [] });
             try {
+                await message.edit({ content: 'لم يتم اختيار اي اختيار سيتم حذف الغرفة بشكل تلقائي', components: [] });
                 stopTheGame(interaction.channel, lobby.owner, client);
             } catch (err) {
-                console.error(`Error stopping the game:`, err);
+                console.error(`Error stopping the game:`);
             }
         }
     });
@@ -462,9 +486,12 @@ async function createUserArray(ids,client) {
 
 
 async function stopTheGame(channel, lobbyOwnerId,client,lobby) {
-    const lobbyId = channel.id;
+    const lobbyId = channel?.id;
     delete client.lobbies[lobbyOwnerId];
-    await channel.delete();
+    try{
+        await channel.delete();
+    }catch(err){
+    }
 }
 
 module.exports = {

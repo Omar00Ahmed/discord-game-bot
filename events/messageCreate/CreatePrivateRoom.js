@@ -31,7 +31,14 @@ async function execute(message,client) {
 
 async function handleCreateRoom(message,client){
     const channelName = `${message.author.username}-gameroom`; // Extract channel name
-    if(client?.lobbies[message.author.id]){
+    const theLobby = client?.lobbies[message.author.id];
+    const lobbyChannel = theLobby?.channelId ? await client.channels.fetch(theLobby.channelId).catch(() => null) : null
+    if(theLobby?.channelId){
+        if(theLobby && !lobbyChannel){
+            await stopTheGame(lobbyChannel, theLobby.owner, client, theLobby);
+        }
+    }
+    if(theLobby && lobbyChannel){
         return message.reply("لقد قمت بإنشاء غرفة بالفعل من قبل , برجاء حذف الغرفة السابقة");
     }
 
@@ -63,7 +70,12 @@ async function handleCreateRoom(message,client){
             startTimeOut:null,
             owner:message.author.id,
             channelId: channel.id,
+            firstCheck:true,
+            // lobbyDeleter: setTimeout(() => {
+            //     stopTheGame(channel,message.author.id,client)
+            // }, 1000 * 60 * 2)
         };
+
 
         const lobby = {
             players: [],
@@ -119,7 +131,8 @@ async function handleRemoveRoom(message,client){
     const lobby = Object.values(client.lobbies).find(lobby => lobby.channelId === channelId);
     const member = message.member;
     if (lobby && (message.author.id === lobby.owner || message.member.permissions.has(PermissionsBitField.Flags.ManageChannels) || checkIfCanMute(member,"develop")) ) {
-    } else {
+    } 
+    else {
         message.reply('عذرًا، يمكن فقط لصاحب الغرفة أو المشرف إزالة الغرفة.');
         return;
     }

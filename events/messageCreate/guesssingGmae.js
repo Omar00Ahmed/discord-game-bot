@@ -43,7 +43,7 @@ module.exports = {
       let gameEnded = false;
 
       try {
-        const initialMessage = await message.reply(`# لعبة تخمين الأرقام بدأت! خمن الرقم بين 1 و ${MAX_NUMBER}. لديك دقيقة واحدة.  || @here ||`);
+        const initialMessage = await message.reply(`# لعبة تخمين الأرقام بدأت! خمن الرقم بين 1 و ${MAX_NUMBER}. لديك دقيقة واحدة. `);
 
         const collector = message.channel.createMessageCollector({
           filter: m => !m.author.bot && /^\d+$/.test(m.content),
