@@ -4,7 +4,6 @@ const { Sleep } = require('./createDelay');
 const { createImage } = require('./createImage');
 const {LeaderSettings} = require("../components/LeaderSettings");
 const {LobbyComponent} = require("../components/LobbyEmbed")
-const {addPlayerPoints} = require("../db/playersScore")
 
 
 

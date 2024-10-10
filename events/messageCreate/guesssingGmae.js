@@ -3,9 +3,10 @@ const { prefix } = require("../../utils/MessagePrefix");
 const { addPlayerPoints } = require("../../db/playersScore");
 
 const GAME_DURATION = 60000; // 1 minute in milliseconds
-const MAX_NUMBER = 40; // Maximum number to guess
+const MAX_NUMBER = 35; // Maximum number to guess
 
 const allowedChannels = [
+    "1292642149493510184",
   "1277694414935953564",
   "1290377082123194428"
 ];
@@ -37,10 +38,12 @@ module.exports = {
 
       client.gamesStarted.set("numberGuess", true);
       const targetNumber = Math.floor(Math.random() * MAX_NUMBER) + 1;
-      const players = new Map();
       console.log(targetNumber);
+      const players = new Map();
+      let gameEnded = false;
+
       try {
-        const initialMessage = await message.channel.send(`لعبة تخمين الأرقام بدأت! خمن الرقم بين 1 و ${MAX_NUMBER}. لديك دقيقة واحدة.`);
+        const initialMessage = await message.reply(`# لعبة تخمين الأرقام بدأت! خمن الرقم بين 1 و ${MAX_NUMBER}. لديك دقيقة واحدة.  || @here ||`);
 
         const collector = message.channel.createMessageCollector({
           filter: m => !m.author.bot && /^\d+$/.test(m.content),
@@ -48,6 +51,8 @@ module.exports = {
         });
 
         collector.on('collect', async (m) => {
+          if (gameEnded) return;
+
           const guess = parseInt(m.content);
           const playerId = m.author.id;
 
@@ -59,21 +64,24 @@ module.exports = {
           playerData.guesses++;
 
           if (guess === targetNumber) {
-            await m.react("✅");
+            m.react("✅");
             endGame('win', m.author, playerData.guesses);
           } else {
             await m.react(guess > targetNumber ? '⬇️' : '⬆️');
           }
         });
 
-        setTimeout(() => {
-          if (client.gamesStarted.get("numberGuess")) {
+        const timeoutId = setTimeout(() => {
+          if (!gameEnded) {
             endGame('timeout');
           }
         }, GAME_DURATION);
 
         async function endGame(reason, winner = null, tries = 0) {
+          if (gameEnded) return; // Prevent multiple endGame calls
+          gameEnded = true;
           collector.stop();
+          clearTimeout(timeoutId);
           client.gamesStarted.set("numberGuess", false);
 
           if (reason === 'win') {

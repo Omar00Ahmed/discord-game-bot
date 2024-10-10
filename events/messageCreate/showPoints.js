@@ -23,10 +23,10 @@ const execute = async (message, client) => {
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    // Check if the command is issued in an allowed channel
-    if (!allowedChannels.includes(message.channelId)) {
-        return message.reply(`يمكن كتابة هذا الامر فقط في <#${allowedChannels[0]}> | ❌`);
-    }
+    // // Check if the command is issued in an allowed channel
+    // if (!allowedChannels.includes(message.channelId)) {
+    //     return message.reply(`يمكن كتابة هذا الامر فقط في <#${allowedChannels[0]}> | ❌`);
+    // }
 
     // Switch case to handle commands
     switch (command) {
