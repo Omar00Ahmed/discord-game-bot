@@ -4,6 +4,7 @@ const {LeaderSettings} = require("../../components/LeaderSettings");
 const { client } = require('../..');
 const {stopTheGame} = require("../../utils/gameFightsLogic");
 const { Sleep } = require('../../utils/createDelay');
+const { checkIfCanMute } = require('../../utils/WhoCanMute');
 
 /**
  * @param {Message} message The date
@@ -116,8 +117,8 @@ async function handleRemoveRoom(message,client){
 
     const channelId = message.channel.id;
     const lobby = Object.values(client.lobbies).find(lobby => lobby.channelId === channelId);
-    
-    if (lobby && (message.author.id === lobby.owner || message.member.permissions.has(PermissionsBitField.Flags.ManageChannels))) {
+    const member = message.member;
+    if (lobby && (message.author.id === lobby.owner || message.member.permissions.has(PermissionsBitField.Flags.ManageChannels) || checkIfCanMute(member,"develop")) ) {
     } else {
         message.reply('عذرًا، يمكن فقط لصاحب الغرفة أو المشرف إزالة الغرفة.');
         return;
