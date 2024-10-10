@@ -8,6 +8,14 @@ const {LobbyComponent} = require("../components/LobbyEmbed")
 
 
 
+const {
+    getPlayerPoints,
+    resetAllPlayersPoints,
+    resetPlayerPoints,
+    getTopPlayers,
+    upsertPlayerPoints,
+    addPlayerPoints
+} = require("../db/playersScore");
 
 
 const questions = theQuestions;
@@ -207,7 +215,19 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player) {
             if (selectedIndex === gameState.currentQuestion.correctIndex) {
                 collector.stop('correct');
                 const winningTeam = interaction.user.id === team1Player ? 'team1' : 'team2';
-                await interaction.reply(`إجابة صحيحة! <@${interaction.user.id}> يسجل نقطة لفريق ${winningTeam === 'team1' ? 'فريق 1' : 'فريق 2'}!`);
+                const newPoints = await addPlayerPoints(interaction.user.id,1);
+                const pointsButton = new ButtonBuilder()
+                    .setCustomId('points')
+                    .setLabel(`النقاط : ${newPoints}`)
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji("💎")
+                    .setDisabled(true);
+                
+                const row = new ActionRowBuilder().addComponents(pointsButton);
+                await interaction.reply({
+                    content:`إجابة صحيحة! <@${interaction.user.id}> يسجل نقطة لفريق ${winningTeam === 'team1' ? 'فريق 1' : 'فريق 2'}!`,
+                    components:[row]
+                });
                 gameState.roundsThreshold = 0;
                 resolve(interaction.user.id);
             } else {

@@ -10,7 +10,7 @@ const {
 } = require("../../db/playersScore");
 const { checkIfCanMute } = require("../../utils/WhoCanMute");
 
-const allowedChannels = ["1291162640001007672","1293358588366028931"];
+const allowedChannels = ["1291162640001007672"];
 
 /**
  * @param {Message} message The message object
@@ -24,18 +24,18 @@ const execute = async (message, client) => {
     const command = args.shift().toLowerCase();
 
     // Check if the command is issued in an allowed channel
-    
+    if (!allowedChannels.includes(message.channelId)) {
+        return message.reply(`يمكن كتابة هذا الامر فقط في <#${allowedChannels[0]}> | ❌`);
+    }
 
     // Switch case to handle commands
     switch (command) {
         case "نقاط":
-            if (!allowedChannels.includes(message.channelId)) {
-                return message.reply(`يمكن كتابة هذا الامر فقط في <#${allowedChannels[0]}> | ❌`);
-            }
             await handlePoints(message);
             break;
         case "تصفير":
             await handleResetPoints(message);
+            
             break;
         case "الافضل":
             if (!["1293358588366028931"].includes(message.channelId)) {
@@ -68,6 +68,14 @@ async function handlePoints(message) {
         .setColor("#00AAFF");
 
     await message.channel.send({ embeds: [embed] });
+}
+
+async function announceChannel(message){
+   const repliedMessage =  await message.reply(`يمكن كتابة هذا الامر فقط في <#${allowedChannels[0]}> | ❌`);
+   setTimeout(async () => {
+    await message.delete();
+    await repliedMessage.delete();
+   }, 5000);
 }
 
 async function handleResetPoints(message) {

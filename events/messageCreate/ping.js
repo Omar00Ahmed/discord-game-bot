@@ -7,7 +7,8 @@ const WIRE_COLORS = ['🔴', '🟢', '🔵', '🟡']; // Emoji representations o
 
 const allowedChnanels = [
   "1292642149493510184",
-  "1290377082123194428"
+  "1290377082123194428",
+  "1285395261237104720"
 ]
 
 // Shuffle array helper function
@@ -96,8 +97,8 @@ module.exports = {
           .slice(0, 3)
           .map(playerId => {
             const player = players[playerId];
-            const playerName = message.client.users.cache.get(playerId).username;
-            return `${playerName}: ${player.connectedPairs}/4`;
+            const playerName = message.client.users.cache.get(playerId).id;
+            return `<@${playerName}>: ${player.connectedPairs}/4`;
           })
           .join('\n');
 
