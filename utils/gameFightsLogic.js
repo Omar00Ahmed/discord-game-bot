@@ -243,7 +243,7 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player,lobby,
                     await channel.send(`الإجابة الصحيحة هي: ${correctAnswer}`);
                 }
 
-                const winnerPlayer = reason === 'correct' ? collected.first().user.id : null;
+                const winnerPlayer = reason === 'correct' ? collected.last().user.id : null;
                 const loserPlayer = reason === 'correct' ? (winnerPlayer === team1Player ? team2Player : team1Player) : null;
 
                 if (client?.lobbies[lobby.owner]?.susPlayers && winnerPlayer) {
