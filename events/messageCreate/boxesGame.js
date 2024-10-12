@@ -22,7 +22,7 @@ function createButtonGrid() {
 
   // 2% chance to add 30 points to one random button
   let pointButton = null;
-  if (Math.random() < 0.04) {
+  if (Math.random() < 0.02) {
     do {
       pointButton = Math.floor(Math.random() * TOTAL_BUTTONS);
     } while (specialButtons.has(pointButton));
@@ -42,24 +42,20 @@ function createButtonGrid() {
       }
     }
 
-    buttons.push(
-      new ButtonBuilder()
+    buttons.push({
+      builder: new ButtonBuilder()
         .setCustomId(customId)
         .setLabel(label)
-        .setStyle(style)
-    );
+        .setStyle(style),
+      state: 'unopened'
+    });
   }
 
-  const rows = [];
-  for (let i = 0; i < GRID_SIZE; i++) {
-    rows.push(new ActionRowBuilder().addComponents(buttons.slice(i * GRID_SIZE, (i + 1) * GRID_SIZE)));
-  }
-
-  return { rows, totalPrizes: specialButtons.size };
+  return { buttons, totalPrizes: specialButtons.size };
 }
 
 module.exports = {
-  name: 'صناديق',
+  name: 'بحث',
   /**
    * @param {Message} message The message object
    */
@@ -70,7 +66,7 @@ module.exports = {
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    if (command === 'صناديق') {
+    if (command === 'بحث') {
       if (Array.from(client?.gamesStarted.values()).some(game => game) || !allowedChannels.includes(message.channelId)) {
         return message.react("❌");
       }
@@ -81,8 +77,15 @@ module.exports = {
       let gameEnded = false;
 
       try {
-        const { rows: buttonRows, totalPrizes } = createButtonGrid();
+        const { buttons, totalPrizes } = createButtonGrid();
         let collectedPrizes = 0;
+
+        const buttonRows = [];
+        for (let i = 0; i < GRID_SIZE; i++) {
+          buttonRows.push(new ActionRowBuilder().addComponents(
+            buttons.slice(i * GRID_SIZE, (i + 1) * GRID_SIZE).map(b => b.builder)
+          ));
+        }
 
         const initialMessage = await message.reply({
           content: '# لعبة الصناديق بدأت! اضغط على جميع الصناديق قبل انتهاء الوقت!',
@@ -97,38 +100,70 @@ module.exports = {
         collector.on('collect', async (interaction) => {
           if (gameEnded) return;
 
+          const buttonId = interaction.customId;
+          const buttonIndex = parseInt(buttonId.split('_')[1]);
+
+          // Check if the button has already been opened
+          if (buttons[buttonIndex].state !== 'unopened') {
+            await interaction.reply({ content: 'هذا الصندوق تم فتحه بالفعل!', ephemeral: true });
+            return;
+          }
+
           const playerId = interaction.user.id;
           if (!players.has(playerId)) {
             players.set(playerId, { points: 0, coins: 0 });
           }
 
           const playerData = players.get(playerId);
-          const buttonId = interaction.customId;
 
           let content = '';
           if (buttonId.startsWith('coin_')) {
             playerData.coins += 3;
-            content = `🪙 <@${playerId}> حصلت على 3 عملات!`;
+            buttons[buttonIndex].state = 'coin';
+            const newPoints = await addPlayerPoints(playerId, 3);
+            const pointsButton = new ButtonBuilder()
+                .setCustomId('points')
+                .setLabel(`النقاط : ${newPoints}`)
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji("💎")
+                .setDisabled(true);
+
+            const row = new ActionRowBuilder().addComponents(pointsButton);
+            await interaction.channel.send({content:`🎁 <@${playerId}> حصلت على 3 عملات!`, components: [row] });
             collectedPrizes++;
           } else if (buttonId.startsWith('point_')) {
             playerData.points += 30;
-            content = `💎 <@${playerId}> حصلت على 30 نقطة!`;
+            buttons[buttonIndex].state = 'point';
+            const newPoints = await addPlayerPoints(playerId, 30);
+            const pointsButton = new ButtonBuilder()
+                .setCustomId('points')
+                .setLabel(`النقـاط : ${newPoints}`)
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji("💎")
+                .setDisabled(true);
+            const row = new ActionRowBuilder().addComponents(pointsButton);
+            await interaction.channel.send({content:`🏆 <@${playerId}> حصلت على 30 نقطة!`, components: [row] });
             collectedPrizes++;
           } else {
-            content = `<@${playerId}> فتح صندوق فارغ!`;
+            buttons[buttonIndex].state = 'empty';
           }
 
           remainingButtons--;
-          const buttonIndex = parseInt(buttonId.split('_')[1]);
-          const rowIndex = Math.floor(buttonIndex / GRID_SIZE);
-          const columnIndex = buttonIndex % GRID_SIZE;
 
-          interaction.message.components[rowIndex].components[columnIndex] = ButtonBuilder.from(
-            interaction.message.components[rowIndex].components[columnIndex]
-          ).setDisabled(true).setLabel(buttonId.startsWith('coin_') ? '🎁' : buttonId.startsWith('point_') ? '💎' : '❌');
+          // Update the button's appearance
+          buttons[buttonIndex].builder.setDisabled(true)
+            .setLabel(buttons[buttonIndex].state === 'coin' ? '🎁' : buttons[buttonIndex].state === 'point' ? '💎' : '❌');
 
-          await interaction.update({ components: interaction.message.components });
-        //   await interaction.followUp({ content, ephemeral: true });
+          // Reconstruct the button rows with the updated button
+          const updatedButtonRows = [];
+          for (let i = 0; i < GRID_SIZE; i++) {
+            updatedButtonRows.push(new ActionRowBuilder().addComponents(
+              buttons.slice(i * GRID_SIZE, (i + 1) * GRID_SIZE).map(b => b.builder)
+            ));
+          }
+
+          await initialMessage.edit({ components: updatedButtonRows });
+          await interaction.deferUpdate();
 
           if (collectedPrizes === totalPrizes) {
             endGame('allPrizesCollected');
@@ -171,7 +206,7 @@ module.exports = {
           await message.channel.send(`${endMessage}\n${winnerMessage}`);
 
           // Disable all remaining buttons
-          const disabledRows = initialMessage.components.map(row => {
+          const disabledRows = updatedButtonRows.map(row => {
             const newRow = new ActionRowBuilder();
             row.components.forEach(button => {
               newRow.addComponents(ButtonBuilder.from(button).setDisabled(true));
