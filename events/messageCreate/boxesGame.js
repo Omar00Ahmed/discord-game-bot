@@ -98,91 +98,109 @@ module.exports = {
         });
 
         collector.on('collect', async (interaction) => {
-          if (gameEnded) return;
-
-          const buttonId = interaction.customId;
-          const buttonIndex = parseInt(buttonId.split('_')[1]);
-
-          // Check if the button has already been opened
-          if (buttons[buttonIndex].state !== 'unopened') {
-            await interaction.reply({ content: 'هذا الصندوق تم فتحه بالفعل!', ephemeral: true });
-            return;
-          }
-
-          const playerId = interaction.user.id;
-          if (!players.has(playerId)) {
-            players.set(playerId, { points: 0, coins: 0, attempts: 0 });
-          }
-
-          const playerData = players.get(playerId);
-          playerData.attempts++;
-
-          let content = '';
-          let pointsEarned = 0;
-          if (buttonId.startsWith('coin_')) {
-            pointsEarned = playerData.attempts === 1 ? 6 : 3; // Double points if first attempt
-            playerData.coins += pointsEarned;
-            buttons[buttonIndex].state = 'coin';
-            const newPoints = await addPlayerPoints(playerId, pointsEarned);
-            const pointsButton = new ButtonBuilder()
-                .setCustomId('points')
-                .setLabel(`النقاط : ${newPoints}`)
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji("💎")
-                .setDisabled(true);
-
-            const row = new ActionRowBuilder().addComponents(pointsButton);
-            content = `🎁 <@${playerId}> حصلت على ${pointsEarned} عملات!`;
-            if (playerData.attempts === 1) {
-              content += ' (مضاعفة للمحاولة الأولى!)';
+            if (gameEnded) return;
+          
+            const buttonId = interaction.customId;
+            const buttonIndex = parseInt(buttonId.split('_')[1]);
+          
+            // Check if the button has already been opened or locked
+            if (buttons[buttonIndex].state !== 'unopened') {
+              await interaction.reply({ content: 'عذراً، تم فتح هذا الصندوق من قبل!', ephemeral: true });
+              return;
             }
-            await interaction.channel.send({content: content, components: [row] });
-            collectedPrizes++;
-          } else if (buttonId.startsWith('point_')) {
-            pointsEarned = playerData.attempts === 1 ? 60 : 30; // Double points if first attempt
-            playerData.points += pointsEarned;
-            buttons[buttonIndex].state = 'point';
-            const newPoints = await addPlayerPoints(playerId, pointsEarned);
-            const pointsButton = new ButtonBuilder()
-                .setCustomId('points')
-                .setLabel(`النقـاط : ${newPoints}`)
-                .setStyle(ButtonStyle.Secondary)
-                .setEmoji("💎")
-                .setDisabled(true);
-            const row = new ActionRowBuilder().addComponents(pointsButton);
-            content = `🏆 <@${playerId}> حصلت على ${pointsEarned} نقطة!`;
-            if (playerData.attempts === 1) {
-              content += ' (مضاعفة للمحاولة الأولى!)';
-            }
-            await interaction.channel.send({content: content, components: [row] });
-            collectedPrizes++;
-          } 
-
-          remainingButtons--;
-
-          // Update the button's appearance
-          buttons[buttonIndex].builder.setDisabled(true)
-            .setLabel(buttons[buttonIndex].state === 'coin' ? '🎁' : buttons[buttonIndex].state === 'point' ? '💎' : '❌');
-
-          // Reconstruct the button rows with the updated button
-          const updatedButtonRows = [];
-          for (let i = 0; i < GRID_SIZE; i++) {
-            updatedButtonRows.push(new ActionRowBuilder().addComponents(
-              buttons.slice(i * GRID_SIZE, (i + 1) * GRID_SIZE).map(b => b.builder)
-            ));
-          }
-
-          await initialMessage.edit({ components: updatedButtonRows });
-          if (!interaction.replied) {
+          
+            // Lock the button immediately to prevent other players from interacting with it
+            buttons[buttonIndex].state = 'locked';
+          
+            // Acknowledge interaction quickly
             await interaction.deferUpdate();
-          }
+          
+            const playerId = interaction.user.id;
+            if (!players.has(playerId)) {
+              players.set(playerId, { points: 0, coins: 0, attempts: 0 });
+            }
+          
+            const playerData = players.get(playerId);
+            playerData.attempts++;
+          
+            let content = '';
+            let pointsEarned = 0;
+            if (buttonId.startsWith('coin_')) {
+              pointsEarned = playerData.attempts === 1 ? 6 : 3; // Double points if first attempt
+              playerData.coins += pointsEarned;
+              buttons[buttonIndex].state = 'coin';
+          
+              // Asynchronously update player points, don't block interaction response
+              addPlayerPoints(playerId, pointsEarned).then(async (newPoints) => {
+                const pointsButton = new ButtonBuilder()
+                    .setCustomId('points')
+                    .setLabel(`النقاط : ${newPoints}`)
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji("💎")
+                    .setDisabled(true);
+          
+                const row = new ActionRowBuilder().addComponents(pointsButton);
+                content = `🎁 <@${playerId}> حصلت على ${pointsEarned} عملات!`;
+                if (playerData.attempts === 1) {
+                  content += ' (مضاعفة للمحاولة الأولى!)';
+                }
+          
+                // Send points update as a message
+                await interaction.channel.send({ content: content, components: [row] });
+              });
+          
+              collectedPrizes++;
+            } else if (buttonId.startsWith('point_')) {
+              pointsEarned = playerData.attempts === 1 ? 60 : 30; // Double points if first attempt
+              playerData.points += pointsEarned;
+              buttons[buttonIndex].state = 'point';
+          
+              // Asynchronously update player points
+              addPlayerPoints(playerId, pointsEarned).then(async (newPoints) => {
+                const pointsButton = new ButtonBuilder()
+                    .setCustomId('points')
+                    .setLabel(`النقـاط : ${newPoints}`)
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji("💎")
+                    .setDisabled(true);
+                const row = new ActionRowBuilder().addComponents(pointsButton);
+                content = `🏆 <@${playerId}> حصلت على ${pointsEarned} نقطة!`;
+                if (playerData.attempts === 1) {
+                  content += ' (مضاعفة للمحاولة الأولى!)';
+                }
+          
+                // Send points update as a message
+                await interaction.channel.send({ content: content, components: [row] });
+              });
+          
+              collectedPrizes++;
+            }
+          
+            remainingButtons--;
+          
+            // Update the button's appearance to disabled
+            buttons[buttonIndex].builder.setDisabled(true)
+              .setLabel(buttons[buttonIndex].state === 'coin' ? '🎁' : buttons[buttonIndex].state === 'point' ? '💎' : '❌');
+          
+            // Reconstruct the button rows with the updated button
+            const updatedButtonRows = [];
+            for (let i = 0; i < GRID_SIZE; i++) {
+              updatedButtonRows.push(new ActionRowBuilder().addComponents(
+                buttons.slice(i * GRID_SIZE, (i + 1) * GRID_SIZE).map(b => b.builder)
+              ));
+            }
+          
+            // Edit the message with the updated buttons
+            await initialMessage.edit({ components: updatedButtonRows });
+          
+            if (collectedPrizes === totalPrizes) {
+              endGame('allPrizesCollected');
+            } else if (remainingButtons === 0) {
+              endGame('allButtonsClicked');
+            }
+          });
+          
 
-          if (collectedPrizes === totalPrizes) {
-            endGame('allPrizesCollected');
-          } else if (remainingButtons === 0) {
-            endGame('allButtonsClicked');
-          }
-        });
 
         const timeoutId = setTimeout(() => {
           if (!gameEnded) {
