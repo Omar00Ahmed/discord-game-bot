@@ -111,16 +111,19 @@ module.exports = {
 
           const playerId = interaction.user.id;
           if (!players.has(playerId)) {
-            players.set(playerId, { points: 0, coins: 0 });
+            players.set(playerId, { points: 0, coins: 0, attempts: 0 });
           }
 
           const playerData = players.get(playerId);
+          playerData.attempts++;
 
           let content = '';
+          let pointsEarned = 0;
           if (buttonId.startsWith('coin_')) {
-            playerData.coins += 3;
+            pointsEarned = playerData.attempts === 1 ? 6 : 3; // Double points if first attempt
+            playerData.coins += pointsEarned;
             buttons[buttonIndex].state = 'coin';
-            const newPoints = await addPlayerPoints(playerId, 3);
+            const newPoints = await addPlayerPoints(playerId, pointsEarned);
             const pointsButton = new ButtonBuilder()
                 .setCustomId('points')
                 .setLabel(`النقاط : ${newPoints}`)
@@ -129,12 +132,17 @@ module.exports = {
                 .setDisabled(true);
 
             const row = new ActionRowBuilder().addComponents(pointsButton);
-            await interaction.channel.send({content:`🎁 <@${playerId}> حصلت على 3 عملات!`, components: [row] });
+            content = `🎁 <@${playerId}> حصلت على ${pointsEarned} عملات!`;
+            if (playerData.attempts === 1) {
+              content += ' (مضاعفة للمحاولة الأولى!)';
+            }
+            await interaction.channel.send({content: content, components: [row] });
             collectedPrizes++;
           } else if (buttonId.startsWith('point_')) {
-            playerData.points += 30;
+            pointsEarned = playerData.attempts === 1 ? 60 : 30; // Double points if first attempt
+            playerData.points += pointsEarned;
             buttons[buttonIndex].state = 'point';
-            const newPoints = await addPlayerPoints(playerId, 30);
+            const newPoints = await addPlayerPoints(playerId, pointsEarned);
             const pointsButton = new ButtonBuilder()
                 .setCustomId('points')
                 .setLabel(`النقـاط : ${newPoints}`)
@@ -142,11 +150,13 @@ module.exports = {
                 .setEmoji("💎")
                 .setDisabled(true);
             const row = new ActionRowBuilder().addComponents(pointsButton);
-            await interaction.channel.send({content:`🏆 <@${playerId}> حصلت على 30 نقطة!`, components: [row] });
+            content = `🏆 <@${playerId}> حصلت على ${pointsEarned} نقطة!`;
+            if (playerData.attempts === 1) {
+              content += ' (مضاعفة للمحاولة الأولى!)';
+            }
+            await interaction.channel.send({content: content, components: [row] });
             collectedPrizes++;
-          } else {
-            buttons[buttonIndex].state = 'empty';
-          }
+          } 
 
           remainingButtons--;
 
@@ -163,7 +173,9 @@ module.exports = {
           }
 
           await initialMessage.edit({ components: updatedButtonRows });
-          await interaction.deferUpdate();
+          if (!interaction.replied) {
+            await interaction.deferUpdate();
+          }
 
           if (collectedPrizes === totalPrizes) {
             endGame('allPrizesCollected');
@@ -189,7 +201,6 @@ module.exports = {
           for (const [playerId, playerData] of players) {
             const totalPoints = playerData.points + playerData.coins;
             if (totalPoints > 0) {
-              const newPoints = await addPlayerPoints(playerId, totalPoints);
               winnerMessage += `<@${playerId}>: ${totalPoints} نقطة (${playerData.coins} عملات)\n`;
             }
           }
@@ -206,7 +217,7 @@ module.exports = {
           await message.channel.send(`${endMessage}\n${winnerMessage}`);
 
           // Disable all remaining buttons
-          const disabledRows = updatedButtonRows.map(row => {
+          const disabledRows = buttonRows.map(row => {
             const newRow = new ActionRowBuilder();
             row.components.forEach(button => {
               newRow.addComponents(ButtonBuilder.from(button).setDisabled(true));
