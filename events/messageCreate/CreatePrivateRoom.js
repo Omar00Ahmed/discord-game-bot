@@ -1,7 +1,6 @@
 const { Client,ChannelType,PermissionsBitField,Message,EmbedBuilder } = require('discord.js');
 const {prefix} = require("../../utils/MessagePrefix")
 const {LeaderSettings} = require("../../components/LeaderSettings");
-const { client } = require('../..');
 const {stopTheGame} = require("../../utils/gameFightsLogic");
 const { Sleep } = require('../../utils/createDelay');
 const { checkIfCanMute } = require('../../utils/WhoCanMute');

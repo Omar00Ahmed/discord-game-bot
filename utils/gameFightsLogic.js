@@ -202,9 +202,12 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player,lobby,
                 await interaction.reply({ content: 'لقد أجبت بالفعل على هذا السؤال.', ephemeral: true });
                 return;
             }
-
             answeredPlayers.add(interaction.user.id);
             const selectedIndex = parseInt(interaction.customId.split('_')[1]);
+            if (!client?.lobbies?.[lobby.owner]?.susPlayers) {
+                client.lobbies[lobby.owner].susPlayers = {};
+            }
+            client.lobbies[lobby.owner].susPlayers[interaction.user.id] = 0;
             if (selectedIndex === gameState.currentQuestion.correctIndex) {
                 collector.stop('correct');
                 const winningTeam = interaction.user.id === team1Player ? 'team1' : 'team2';
@@ -259,8 +262,8 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player,lobby,
                             client.lobbies[lobby.owner].susPlayers[loserPlayer] = 1;
                         } else {
                             client.lobbies[lobby.owner].susPlayers[loserPlayer]++;
-                            if (client.lobbies[lobby.owner].susPlayers[loserPlayer] >= 5) {
-                                await channel.send(`لم يقم هذا الشخص بالإجابة ل 4 ادوار متتالية <@${loserPlayer}> سيتم حذف الغرفة بعد 3 ثواني`);
+                            if (client.lobbies[lobby.owner].susPlayers[loserPlayer] >= 10) {
+                                await channel.send(`لم يقم هذا الشخص بالإجابة ل 10 ادوار متتالية <@${loserPlayer}> سيتم حذف الغرفة بعد 3 ثواني`);
                                 await Sleep(3000);
                                 await stopTheGame(channel, lobby.owner, client);
                                 return;

@@ -1,4 +1,4 @@
-const { Emoji, Client } = require("discord.js")
+const { Emoji } = require("discord.js")
 
 const NumbersEmogieIds = [
     "1292226753695187086",
@@ -19,11 +19,7 @@ const NumbersEmogieIds = [
     "1292224867801894943"    
 ]
 
-//loading all emogies and assign them in the client 
-/**
- * 
- * @param {Client} client 
- */
+
 const execute = async(client)=>{
     client.NumbersEmo = NumbersEmogieIds;
     console.log(`All emojis loaded successfully ${client.NumbersEmo}`)
