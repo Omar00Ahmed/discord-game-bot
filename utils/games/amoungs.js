@@ -4,8 +4,9 @@ const {checkIfCanMute} = require("../../utils/WhoCanMute")
 const path = require("path")
 
 class AmongUsGame {
-  constructor(channel) {
+  constructor(channel,theClient) {
     this.channel = channel;
+    this.client = theClient;
     this.players = new Map();
     this.places = [
       'staduim', 'cafeteria', 'gym', 'house1', 'house2',
@@ -100,11 +101,11 @@ class AmongUsGame {
       : 'No players yet';
   }
 
-  startGame() {
+  async startGame() {
     this.gameState = 'playing';
     this.assignRoles();
     this.initializeTasks();
-    this.sendGameStartMessage();
+    await this.sendGameStartMessage();
     this.startRound();
   }
 
@@ -136,6 +137,8 @@ class AmongUsGame {
 
     await this.channel.send({ embeds: [embed] });
 
+    const messagePromises = [];
+
     for (const [playerId, playerData] of this.players) {
       const isImposter = this.imposters.has(playerId);
       const roleMessage = isImposter ? 
@@ -146,13 +149,15 @@ class AmongUsGame {
       if (interaction) {
         const roleGif = isImposter ? 'imposter.gif' : 'crewmate.gif';
         const imagePath = this.getImagePath(roleGif);
-        await interaction.followUp({ 
+        messagePromises.push(interaction.followUp({ 
           content: roleMessage, 
           files: [{ attachment: imagePath, name: roleGif }],
           ephemeral: true 
-        });
+        }));
       }
     }
+
+    await Promise.all(messagePromises);
   }
 
   getImagePath(imageName){
@@ -681,6 +686,7 @@ class AmongUsGame {
       .setColor(winner === 'imposter' ? '#ff0000' : '#00ff00');
 
     await this.channel.send({ embeds: [embed] });
+    this.client.games.delete(this.channel.id)
   }
 
   getImpostersList() {
