@@ -21,7 +21,7 @@ class AmongUsGame {
     this.playerInteractions = new Map();
     this.completedTasks = new Set();
     this.reportedThisRound = false;
-    this.startTime = 2 * 60 * 1000; // 2 minutes
+    this.startTime = 1 * 60 * 1000; // 2 minutes
     this.deadPlayers = new Set();
     this.lastHintRound = 0;
   }
@@ -81,6 +81,7 @@ class AmongUsGame {
     collector.on('end', collected => {
       if (this.players.size < 4) {
         this.channel.send('Not enough players joined. Game cancelled.');
+        this.client.games.delete(this.channel.id)
         lobbyMessage.edit({ embeds: [this.createLobbyEmbed()], components: [] });
       }
     });
