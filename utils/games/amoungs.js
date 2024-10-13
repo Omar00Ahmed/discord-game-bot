@@ -477,6 +477,10 @@ class AmongUsGame {
       return "Invalid kill attempt!";
     }
 
+    if(this.reportedThisRound){
+      return "A body has already been reported this round!";
+    }
+
     target.isDead = true;
     this.deadPlayers.add(targetId);
     this.deadBodies.set(targetId, target.place);
