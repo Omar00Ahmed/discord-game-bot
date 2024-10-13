@@ -1,5 +1,7 @@
+const { client } = require('../..');
 const AmongUsGame = require('./amoungs');
 const {ChannelType} = require("discord.js")
+
 module.exports = {
   name: 'start_game',
   async execute(message, client) {
@@ -7,7 +9,7 @@ module.exports = {
       return message.reply('This command can only be used in a server text channel.');
     }
 
-    const existingGame = message.client.games.get(message.channelId);
+    const existingGame = client.games.get(message.channelId);
     if (existingGame) {
       return message.reply('A game is already in progress in this channel.');
     }
