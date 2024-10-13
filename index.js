@@ -3,6 +3,12 @@ const fs = require('fs');
 const path = require('path');
 require("dotenv").config();
 
+
+
+
+
+
+
 const client = new Client(
     { intents: 
         [GatewayIntentBits.Guilds,
@@ -10,8 +16,11 @@ const client = new Client(
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.GuildMessagePolls,
-        GatewayIntentBits.DirectMessages
-    ]
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.GuildVoiceStates,
+
+        ],
+        
     }
 );
 client.SayChannels = {};
@@ -41,6 +50,14 @@ process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
     // Handle the error, e.g., log it or restart the bot
 });
+
+client.on("shardDisconnect",(closeEvent,sharedId)=>{
+    const logChannelId = "1295016440184836157"
+    console.log(`Shard ${sharedId} disconnected! Reconnecting...`);
+    client.destroy();
+    client.login(process.env.DISCORD_TOKEN);
+    client.channels.cache.get(logChannelId).send(`Shard ${sharedId} disconnected! Reconnecting...`);
+})
 
 
 

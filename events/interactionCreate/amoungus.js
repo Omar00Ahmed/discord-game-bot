@@ -55,6 +55,11 @@ module.exports = {
       } else if (interaction.customId.startsWith('vote_')) {
         // Voting is handled in the game logic
         return;
+      }else if(interaction.customId.startsWith('report_sus')){
+        const result = await game.handleReportSus(interaction.user.id);
+      }else if(interaction.customId.startsWith("hint")){
+        const result = await game.handleHint(interaction.user.id);
+        // await interaction.reply({ content: result, ephemeral: true });
       }
     } catch (error) {
       console.error('Error handling interaction:', error);

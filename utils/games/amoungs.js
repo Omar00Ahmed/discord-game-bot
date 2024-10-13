@@ -1,15 +1,18 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection,StringSelectMenuBuilder } = require('discord.js');
+
+const {checkIfCanMute} = require("../../utils/WhoCanMute")
+const path = require("path")
 
 class AmongUsGame {
   constructor(channel) {
     this.channel = channel;
     this.players = new Map();
     this.places = [
-      'Cafeteria', 'Admin', 'Electrical', 'Storage', 'O2',
-      'Navigation', 'Shields', 'Weapons', 'Medbay'
+      'staduim', 'cafeteria', 'gym', 'house1', 'house2',
+      'library', 'market', 'pool', 'stairs'
     ];
     this.tasks = new Map();
-    this.imposter = null;
+    this.imposters = new Set();
     this.gameState = 'lobby';
     this.roundNumber = 0;
     this.deadBodies = new Map();
@@ -17,7 +20,9 @@ class AmongUsGame {
     this.playerInteractions = new Map();
     this.completedTasks = new Set();
     this.reportedThisRound = false;
-    this.startTime = 2 * 60  * 1000; // 30 seconds
+    this.startTime = 2 * 60 * 1000; // 2 minutes
+    this.deadPlayers = new Set();
+    this.lastHintRound = 0;
   }
 
   async startLobby() {
@@ -44,13 +49,16 @@ class AmongUsGame {
       try {
         if (i.customId === 'join_game') {
           if (!this.players.has(i.user.id)) {
-            this.players.set(i.user.id, { id: i.user.id, name: i.user.username, place: null, isDead: false });
+            this.players.set(i.user.id, { id: i.user.id, name: i.user.displayName, place: null, isDead: false });
             this.playerInteractions.set(i.user.id, i);
             await i.reply({ content: 'You have joined the game!', ephemeral: true });
           } else {
             await i.reply({ content: 'You have already joined the game!', ephemeral: true });
           }
         } else if (i.customId === 'start_game') {
+          console.log(i.user.id);
+          const member = await i.guild.members.fetch(i.user.id);
+          if(!checkIfCanMute(member,"startGame")) return;
           if (this.players.size >= 4) {
             collector.stop();
             this.startGame();
@@ -102,13 +110,21 @@ class AmongUsGame {
 
   assignRoles() {
     const playerIds = Array.from(this.players.keys());
-    const imposterIndex = Math.floor(Math.random() * playerIds.length);
-    this.imposter = playerIds[imposterIndex];
+    const playerCount = playerIds.length;
+    const imposterCount = playerCount === 4 ? 1 : Math.floor(playerCount / 5); // 1 imposter for 4 players, otherwise 1 for every 5 players
+    this.imposters = new Set();
+  
+    while (this.imposters.size < imposterCount) {
+      const randomIndex = Math.floor(Math.random() * playerIds.length);
+      const selectedId = playerIds[randomIndex];
+      this.imposters.add(selectedId);
+    }
   }
+  
 
   initializeTasks() {
     this.places.forEach(place => {
-      this.tasks.set(place, 2); // 2 tasks per place
+      this.tasks.set(place, 4); // 2 tasks per place
     });
   }
 
@@ -121,16 +137,27 @@ class AmongUsGame {
     await this.channel.send({ embeds: [embed] });
 
     for (const [playerId, playerData] of this.players) {
-      const isImposter = playerId === this.imposter;
+      const isImposter = this.imposters.has(playerId);
       const roleMessage = isImposter ? 
-        'You are the Imposter! Sabotage and eliminate the crew.' :
-        'You are a Crewmate! Complete tasks and find the imposter.';
+        'You are an Imposter! Sabotage and eliminate the crew.' :
+        'You are a Crewmate! Complete tasks and find the imposters.';
       
       const interaction = this.playerInteractions.get(playerId);
       if (interaction) {
-        await interaction.followUp({ content: roleMessage, ephemeral: true });
+        const roleGif = isImposter ? 'imposter.gif' : 'crewmate.gif';
+        const imagePath = this.getImagePath(roleGif);
+        await interaction.followUp({ 
+          content: roleMessage, 
+          files: [{ attachment: imagePath, name: roleGif }],
+          ephemeral: true 
+        });
       }
     }
+  }
+
+  getImagePath(imageName){
+    const imagePath = path.join(__dirname, '..', '..', 'public', 'images', 'amoungus', imageName);
+    return imagePath;
   }
 
   async startRound() {
@@ -151,7 +178,8 @@ class AmongUsGame {
 
     const message = await this.channel.send({ 
       embeds: [embed], 
-      components: placeButtons
+      components: placeButtons,
+      files:[{attachment: this.getImagePath("places-main.png"), name: "places-main.png"}]
     });
 
     const filter = i => this.players.has(i.user.id) && !this.players.get(i.user.id).isDead;
@@ -227,8 +255,9 @@ class AmongUsGame {
     for (const [playerId, playerData] of this.players) {
       if (playerData.isDead) continue;
 
-      const isImposter = playerId === this.imposter;
+      const isImposter = this.imposters.has(playerId);
       const actionButtons = this.createActionButtons(playerData.place, isImposter);
+  
 
       const embed = new EmbedBuilder()
         .setTitle(`Round ${this.roundNumber} - Your Turn`)
@@ -243,7 +272,8 @@ class AmongUsGame {
         await interaction.followUp({
           embeds: [embed],
           components: actionButtons,
-          ephemeral: true
+          ephemeral: true,
+          files: [{ attachment: this.getImagePath(`places-${playerData.place}.png`), name: `places-${playerData.place}.png`}]
         });
       }
     }
@@ -254,6 +284,8 @@ class AmongUsGame {
       this.startRound();
     }
   }
+
+
 
 
 
@@ -285,8 +317,70 @@ class AmongUsGame {
       );
     }
 
+    if (place === 'staduim') {
+      buttons.push(
+        new ButtonBuilder()
+          .setCustomId('report_sus')
+          .setLabel('Report Suspicious Player')
+          .setStyle(ButtonStyle.Secondary)
+      );
+    }
+
+    if (this.roundNumber - this.lastHintRound >= 3) {
+      buttons.push(
+        new ButtonBuilder()
+          .setCustomId('hint')
+          .setLabel('Ask for Hint')
+          .setStyle(ButtonStyle.Secondary)
+      );
+    }
+
     return [new ActionRowBuilder().addComponents(buttons)];
   }
+
+  async handleReportSus(reporterId) {
+    const reporter = this.players.get(reporterId);
+    if (!reporter || reporter.isDead || reporter.place !== 'staduim') return "You can't report from here!";
+
+    const suspiciousPlayers = Array.from(this.players.values())
+      .filter(p => !p.isDead && p.id !== reporterId)
+      .map(p => ({
+        label: `${p.name}`,
+        value: `${p.id}`
+      }));
+
+    const selectMenu = new ActionRowBuilder()
+      .addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('select_sus')
+          .setPlaceholder('Select a suspicious player')
+          .addOptions(suspiciousPlayers)
+      );
+
+    const interaction = this.playerInteractions.get(reporterId);
+    if (interaction) {
+      await interaction.followUp({
+        content: 'Select a player you find suspicious:',
+        components: [selectMenu],
+        ephemeral: true
+      });
+    }
+
+    // Wait for the reporter to select a suspicious player
+    const filter = i => i.customId === 'select_sus' && i.user.id === reporterId;
+    try {
+      const response = await interaction.channel.awaitMessageComponent({ filter, time: 30000 });
+      const suspiciousPlayerId = response.values[0];
+      const suspiciousPlayer = this.players.get(suspiciousPlayerId);
+
+      await this.channel.send(`Emergency Meeting! ${reporter.name} has reported ${suspiciousPlayer.name} as suspicious!`);
+      this.startVoting();
+    } catch (error) {
+      await interaction.followUp({ content: 'You did not select a player in time.', ephemeral: true });
+    }
+  }
+
+
 
 
   getPlayersInLocation(place) {
@@ -311,7 +405,7 @@ class AmongUsGame {
 
   async handleTask(playerId) {
     const player = this.players.get(playerId);
-    if (!player || player.isDead || player.id === this.imposter) return "You can't do tasks!";
+    if (!player || player.isDead || this.imposters.has(player.id)) return "You can't do tasks!";
 
     const tasksRemaining = this.tasks.get(player.place);
     if (tasksRemaining <= 0) {
@@ -335,7 +429,7 @@ class AmongUsGame {
 
 
   async handleKill(killerId, targetId) {
-    if (killerId !== this.imposter) return "You are not the imposter!";
+    if (!this.imposters.has(killerId)) return "You are not an imposter!";
 
     const killer = this.players.get(killerId);
     const target = this.players.get(targetId);
@@ -345,7 +439,26 @@ class AmongUsGame {
     }
 
     target.isDead = true;
+    this.deadPlayers.add(targetId);
     this.deadBodies.set(targetId, target.place);
+    
+    // Announce the kill to the channel
+    await this.channel.send(`# ⚠️ warning : someone got kiled search for him`);
+
+    // Notify the killed player
+    const interaction = this.playerInteractions.get(targetId);
+    if (interaction) {
+      await interaction.followUp({ 
+        content: "You have been killed! You can no longer participate in the game, but you can watch silently.", 
+        ephemeral: true,
+        files: [{ attachment: this.getImagePath(`kill.gif`), name: `kill.gif` }] 
+
+      });
+      
+      // Remove the player's ability to send messages in the channel
+      await this.channel.permissionOverwrites.edit(targetId, { SendMessages: false });
+      
+    }
     
     if (this.checkImposterWin()) {
       this.endGame('imposter');
@@ -355,13 +468,41 @@ class AmongUsGame {
     return `You have killed ${target.name}!`;
   }
 
+  async handleHint(playerId) {
+    if (this.roundNumber - this.lastHintRound < 3) {
+      return "Hint is not available yet. Wait for 3 rounds between hints.";
+    }
+
+    this.lastHintRound = this.roundNumber;
+
+    const deadBodiesInfo = Array.from(this.deadBodies.entries())
+      .map(([deadPlayerId, place]) => `${this.players.get(deadPlayerId).name} in ${place}`)
+      .join(', ');
+
+    const hintMessage = deadBodiesInfo
+      ? `There are dead bodies: ${deadBodiesInfo}`
+      : "There are no dead bodies at the moment.";
+
+    const interaction = this.playerInteractions.get(playerId);
+    if (interaction) {
+      await interaction.followUp({
+        content: hintMessage,
+        ephemeral: true
+      });
+    }
+
+    return "Hint has been provided to you privately.";
+  }
+
+
 
 
   async handleReport(reporterId) {
     const reporter = this.players.get(reporterId);
     if (!reporter || reporter.isDead) return "You can't report!";
 
-    if (!Array.from(this.deadBodies.values()).includes(reporter.place)) {
+    const reportedBody = Array.from(this.deadBodies.entries()).find(([_, place]) => place === reporter.place);
+    if (!reportedBody) {
       return "There's no dead body here to report!";
     }
 
@@ -371,9 +512,15 @@ class AmongUsGame {
 
     this.reportedThisRound = true;
     this.gameState = 'voting';
+
+    // Announce the report to the channel
+    const deadPlayer = this.players.get(reportedBody[0]);
+    await this.channel.send(`Emergency Meeting! ${reporter.name} has reported ${deadPlayer.name}'s body in ${reporter.place}!`);
+
     this.startVoting();
     return "A body has been reported! Emergency meeting called!";
   }
+
 
   async startVoting() {
     this.votes.clear();
@@ -393,7 +540,8 @@ class AmongUsGame {
       const voterId = i.user.id;
       const votedId = i.customId.split('_')[1];
       this.votes.set(voterId, votedId);
-      await i.reply({ content: `You have voted for ${this.players.get(votedId).name}.`, ephemeral: true });
+      console.log(this.players.get(votedId));
+      await i.reply({ content: `You have voted for ${this?.players?.get(votedId)?.name || this.votes.get(votedId)}.`, ephemeral: true });
       
       // Update vote counts
       await this.updateVoteCounts(message);
@@ -415,10 +563,17 @@ class AmongUsGame {
       row.components.forEach(button => {
         const playerId = button.customId.split('_')[1];
         const voteCount = voteCounts.get(playerId) || 0;
-        updatedRow.addComponents(
-          ButtonBuilder.from(button)
-            .setLabel(`${this.players.get(playerId).name} (${voteCount})`)
-        );
+        if (button.customId.includes("skip")) {
+          updatedRow.addComponents(
+            ButtonBuilder.from(button)
+              .setLabel(`Skip Vote (${voteCount})`)
+          );
+        } else {
+          updatedRow.addComponents(
+            ButtonBuilder.from(button)
+              .setLabel(`${this.players.get(playerId).name} (${voteCount})`)
+          );
+        }
       });
       return updatedRow;
     });
@@ -438,6 +593,14 @@ class AmongUsGame {
           .setLabel(`${p.name} (0)`)
           .setStyle(ButtonStyle.Primary)
       );
+
+    // Add skip button
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId('vote_skip')
+        .setLabel('Skip Vote (0)')
+        .setStyle(ButtonStyle.Secondary)
+    );
 
     const rows = [];
     for (let i = 0; i < buttons.length; i += 5) {
@@ -465,13 +628,15 @@ class AmongUsGame {
       }
     });
 
-    if (ejectedId) {
+    if (ejectedId && ejectedId !== 'skip') {
       const ejectedPlayer = this.players.get(ejectedId);
       ejectedPlayer.isDead = true;
+      this.deadPlayers.add(ejectedId);
 
-      await this.channel.send(`${ejectedPlayer.name} has been ejected!`);
+      const isImposter =  this.imposters.has(ejectedId);
+      await this.channel.send(`${ejectedPlayer.name} has been ejected! They were ${isImposter ? 'the Imposter' : 'a Crewmate'}.`);
 
-      if (ejectedId === this.imposter) {
+      if (isImposter) {
         this.endGame('crewmate');
       } else if (this.checkImposterWin()) {
         this.endGame('imposter');
@@ -482,6 +647,9 @@ class AmongUsGame {
       await this.channel.send('No one was ejected.');
       this.startRound();
     }
+
+    // Remove reported bodies after vote
+    this.deadBodies.clear();
 
     this.votes.clear();
     this.gameState = 'playing';
@@ -495,9 +663,10 @@ class AmongUsGame {
   }
 
   checkImposterWin() {
-    const aliveCrew = Array.from(this.players.values()).filter(p => !p.isDead && p.id !== this.imposter);
-    return aliveCrew.length <= 1;
+    const aliveCrew = Array.from(this.players.values()).filter(p => !p.isDead && !this.imposters.has(p.id));
+    return aliveCrew.length <= this.imposters.size;
   }
+  
 
   async endGame(winner) {
     this.gameState = 'ended';
@@ -506,12 +675,28 @@ class AmongUsGame {
       .setTitle('Game Over')
       .setDescription(`The ${winner === 'imposter' ? 'Imposter' : 'Crewmates'} win!`)
       .addFields(
-        { name: 'Imposter', value: this.players.get(this.imposter).name },
-        { name: 'Crewmates', value: Array.from(this.players.values()).filter(p => p.id !== this.imposter).map(p => p.name).join('\n') }
+        { name: 'Imposters', value: this.getImpostersList() },
+        { name: 'Crewmates', value: this.getCrewmatesList() }
       )
       .setColor(winner === 'imposter' ? '#ff0000' : '#00ff00');
 
     await this.channel.send({ embeds: [embed] });
+  }
+
+  getImpostersList() {
+    return Array.from(this.imposters)
+      .map(id => `${this.players.get(id).name}${this.deadPlayers.has(id) ? ' 💀' : ''}`)
+      .join('\n');
+  }
+  
+
+
+
+  getCrewmatesList() {
+    return Array.from(this.players.values())
+      .filter(!this.imposters.has(p.id))
+      .map(p => `${p.name}${this.deadPlayers.has(p.id) ? ' 💀' : ''}`)
+      .join('\n');
   }
 }
 

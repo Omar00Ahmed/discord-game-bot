@@ -10,10 +10,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@discordjs/voice": "^0.17.0",
     "canvas": "^2.11.2",
     "discord.js": "^14.16.1",
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
+    "sodium-native": "^4.2.1",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7"
   }
