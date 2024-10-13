@@ -4,7 +4,7 @@ const { prefix } = require("../../utils/MessagePrefix");
 const {upsertPlayerPoints,getPlayerPoints,deletePlayerPoints,addPlayerPoints} = require("../../db/playersScore")
 const GAME_DURATION = 20000; // 1 minute in milliseconds
 const WIRE_COLORS = ['🔴', '🟢', '🔵', '🟡']; // Emoji representations of colors
-
+//updated
 const allowedChnanels = [
   "1292642149493510184",
   "1290377082123194428",
