@@ -67,6 +67,7 @@ class AmongUsGame {
           const member = await i.guild.members.fetch(i.user.id);
           if (!this.checkIfCanMute(member, "startGame")) return;
           if (this.players.size >= 4) {
+            this.gameState = 'waiting';
             collector.stop();
             this.startGame();
           } else {
@@ -110,7 +111,7 @@ class AmongUsGame {
     this.assignRoles();
     this.initializeTasks();
     await this.sendGameStartMessage();
-    await Sleep(3000);
+    await Sleep(5000);
     this.startRound();
   }
 
