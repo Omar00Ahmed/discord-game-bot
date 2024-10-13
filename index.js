@@ -27,6 +27,8 @@ client.SayChannels = {};
 client.gamesStarted = new Map();
 client.games = new Map();
 
+
+
 // Function to dynamically load event functions from folders
 const loadEvents = (client) => {
     const eventFolders = fs.readdirSync(path.join(__dirname, 'events'));

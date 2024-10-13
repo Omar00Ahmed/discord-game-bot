@@ -3,6 +3,8 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection,S
 const {checkIfCanMute} = require("../../utils/WhoCanMute")
 const path = require("path")
 
+const {client} = require("../../index")
+
 class AmongUsGame {
   constructor(channel,theClient) {
     this.channel = channel;
@@ -81,7 +83,7 @@ class AmongUsGame {
     collector.on('end', collected => {
       if (this.players.size < 4) {
         this.channel.send('Not enough players joined. Game cancelled.');
-        this.client.games.delete(this.channel.id);
+        client.games.delete(this.channel.id);
         lobbyMessage.edit({ embeds: [this.createLobbyEmbed()], components: [] });
       }
     });
@@ -277,12 +279,12 @@ class AmongUsGame {
 
       const interaction = this.playerInteractions.get(playerId);
       if (interaction) {
-        actionPromises.push(interaction.followUp({
+        await interaction.followUp({
           embeds: [embed],
           components: actionButtons,
           ephemeral: true,
-          files: [{ attachment: this.getImagePath(`places-${playerData.place}.png`), name: `places-${playerData.place}.png` }]
-        }));
+          files: [{ attachment: this.getImagePath(`places-${playerData.place}.png`), name: `places-${playerData.place}.png`}]
+        });
       }
     }
 
@@ -371,6 +373,13 @@ class AmongUsGame {
   async handleReportSus(reporterId) {
     const reporter = this.players.get(reporterId);
     if (!reporter || reporter.isDead || reporter.place !== 'staduim') return "You can't report from here!";
+
+    if (this.reportedThisRound) {
+      return "A body has already been reported this round!";
+    }
+
+    this.reportedThisRound = true;
+    this.gameState = 'voting';
 
     const suspiciousPlayers = Array.from(this.players.values())
       .filter(p => !p.isDead && p.id !== reporterId)
@@ -711,7 +720,7 @@ class AmongUsGame {
       .setColor(winner === 'imposter' ? '#ff0000' : '#00ff00');
 
     await this.channel.send({ embeds: [embed] });
-    this.client.games.delete(this.channel.id)
+    client.games.delete(this.channel.id)
   }
 
   getImpostersList() {
