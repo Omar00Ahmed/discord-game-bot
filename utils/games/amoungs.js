@@ -8,7 +8,7 @@ const {client} = require("../../index")
 class AmongUsGame {
   constructor(channel,theClient) {
     this.channel = channel;
-    this.client = theClient;
+    // this.client = theClient;
     this.players = new Map();
     this.places = [
       'staduim', 'cafeteria', 'gym', 'house1', 'house2',
@@ -27,7 +27,7 @@ class AmongUsGame {
     this.lastHintRound = 0;
 
     // Timer values as class members
-    this.lobbyWaitTime = 1 * 60 * 1000; // 1 minute
+    this.lobbyWaitTime =  10000; // 1 minute
     this.choosePlaceTime = 30000; // 30 seconds
     this.actionTime = 30000; // 30 seconds
     this.votingTime = 60000; // 1 minute
