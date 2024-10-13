@@ -21,9 +21,14 @@ class AmongUsGame {
     this.playerInteractions = new Map();
     this.completedTasks = new Set();
     this.reportedThisRound = false;
-    this.startTime = 1 * 60 * 1000; // 2 minutes
     this.deadPlayers = new Set();
     this.lastHintRound = 0;
+
+    // Timer values as class members
+    this.lobbyWaitTime = 1 * 60 * 1000; // 1 minute
+    this.choosePlaceTime = 30000; // 30 seconds
+    this.actionTime = 30000; // 30 seconds
+    this.votingTime = 60000; // 1 minute
   }
 
   async startLobby() {
@@ -44,7 +49,7 @@ class AmongUsGame {
     const lobbyMessage = await this.channel.send({ embeds: [embed], components: [row] });
 
     const filter = i => ['join_game', 'start_game'].includes(i.customId);
-    const collector = lobbyMessage.createMessageComponentCollector({ filter, time: this.startTime }); // 5 minutes
+    const collector = lobbyMessage.createMessageComponentCollector({ filter, time: this.lobbyWaitTime });
 
     collector.on('collect', async i => {
       try {
@@ -57,9 +62,8 @@ class AmongUsGame {
             await i.reply({ content: 'You have already joined the game!', ephemeral: true });
           }
         } else if (i.customId === 'start_game') {
-          console.log(i.user.id);
           const member = await i.guild.members.fetch(i.user.id);
-          if(!checkIfCanMute(member,"startGame")) return;
+          if (!this.checkIfCanMute(member, "startGame")) return;
           if (this.players.size >= 4) {
             collector.stop();
             this.startGame();
@@ -70,22 +74,19 @@ class AmongUsGame {
     
         await lobbyMessage.edit({ embeds: [this.createLobbyEmbed()] });
       } catch (error) {
-        if (error.code === 10062) {
-          console.error('Interaction expired:', error);
-        } else {
-          console.error('Error handling interaction:', error);
-        }
+        console.error('Error handling interaction:', error);
       }
     });
 
     collector.on('end', collected => {
       if (this.players.size < 4) {
         this.channel.send('Not enough players joined. Game cancelled.');
-        this.client.games.delete(this.channel.id)
+        this.client.games.delete(this.channel.id);
         lobbyMessage.edit({ embeds: [this.createLobbyEmbed()], components: [] });
       }
     });
   }
+
 
 
   createLobbyEmbed() {
@@ -185,11 +186,11 @@ class AmongUsGame {
     const message = await this.channel.send({ 
       embeds: [embed], 
       components: placeButtons,
-      files:[{attachment: this.getImagePath("places-main.png"), name: "places-main.png"}]
+      files: [{ attachment: this.getImagePath("places-main.png"), name: "places-main.png" }]
     });
 
     const filter = i => this.players.has(i.user.id) && !this.players.get(i.user.id).isDead;
-    const collector = message.createMessageComponentCollector({ filter, time: 30000 }); // 30 seconds
+    const collector = message.createMessageComponentCollector({ filter, time: this.choosePlaceTime });
 
     collector.on('collect', async i => {
       if (i.customId.startsWith('place_')) {
@@ -210,8 +211,8 @@ class AmongUsGame {
       message.edit({ components: [] }); // Disable buttons after time is up
     });
 
-    // Wait for the full 30 seconds before moving to the next phase
-    await new Promise(resolve => setTimeout(resolve, 30000));
+    // Wait for the full time before moving to the next phase
+    await new Promise(resolve => setTimeout(resolve, this.choosePlaceTime));
   }
 
   createTaskButtons() {
@@ -258,12 +259,13 @@ class AmongUsGame {
   async performActions() {
     this.completedTasks.clear();
 
+    const actionPromises = [];
+
     for (const [playerId, playerData] of this.players) {
       if (playerData.isDead) continue;
 
       const isImposter = this.imposters.has(playerId);
       const actionButtons = this.createActionButtons(playerData.place, isImposter);
-  
 
       const embed = new EmbedBuilder()
         .setTitle(`Round ${this.roundNumber} - Your Turn`)
@@ -275,16 +277,23 @@ class AmongUsGame {
 
       const interaction = this.playerInteractions.get(playerId);
       if (interaction) {
-        await interaction.followUp({
+        actionPromises.push(interaction.followUp({
           embeds: [embed],
           components: actionButtons,
           ephemeral: true,
-          files: [{ attachment: this.getImagePath(`places-${playerData.place}.png`), name: `places-${playerData.place}.png`}]
-        });
+          files: [{ attachment: this.getImagePath(`places-${playerData.place}.png`), name: `places-${playerData.place}.png` }]
+        }));
       }
     }
 
-    await new Promise(resolve => setTimeout(resolve, 30000));
+    // Wait for all action messages to be sent
+    const sentMessages = await Promise.all(actionPromises);
+
+    // Set a timeout to disable buttons after the action time
+    setTimeout(() => this.disableActionButtons(sentMessages), this.actionTime);
+
+    // Wait for the action time before starting the next round
+    await new Promise(resolve => setTimeout(resolve, this.actionTime));
 
     if (this.gameState === 'playing') {
       this.startRound();
@@ -292,6 +301,21 @@ class AmongUsGame {
   }
 
 
+  async disableActionButtons(messages) {
+    for (const message of messages) {
+      const disabledComponents = message.components.map(row => {
+        const disabledRow = new ActionRowBuilder();
+        row.components.forEach(component => {
+          disabledRow.addComponents(
+            ButtonBuilder.from(component).setDisabled(true)
+          );
+        });
+        return disabledRow;
+      });
+
+      await message.edit({ components: disabledComponents });
+    }
+  }
 
 
 
@@ -540,13 +564,12 @@ class AmongUsGame {
     const message = await this.channel.send({ embeds: [embed], components: voteButtons });
 
     const filter = i => this.players.has(i.user.id) && !this.players.get(i.user.id).isDead;
-    const collector = message.createMessageComponentCollector({ filter, time: 60000 }); // 1 minute for voting
+    const collector = message.createMessageComponentCollector({ filter, time: this.votingTime });
 
     collector.on('collect', async i => {
       const voterId = i.user.id;
       const votedId = i.customId.split('_')[1];
       this.votes.set(voterId, votedId);
-      console.log(this.players.get(votedId));
       await i.reply({ content: `You have voted for ${this?.players?.get(votedId)?.name || this.votes.get(votedId)}.`, ephemeral: true });
       
       // Update vote counts
@@ -557,6 +580,7 @@ class AmongUsGame {
       this.resolveVotes(message);
     });
   }
+
 
   async updateVoteCounts(message) {
     const voteCounts = new Collection();
