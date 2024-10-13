@@ -4,7 +4,7 @@ const {ChannelType} = require("discord.js")
 
 module.exports = {
   name: 'start_game',
-  async execute(message, client) {
+  async execute(message) {
     if (message.channel.type !== ChannelType.GuildText) {
       return message.reply('This command can only be used in a server text channel.');
     }

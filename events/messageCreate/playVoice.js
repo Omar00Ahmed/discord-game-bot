@@ -2,6 +2,7 @@ const { Message, EmbedBuilder, PermissionsBitField } = require("discord.js");
 const { prefix } = require("../../utils/MessagePrefix");
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus,VoiceConnectionStatus } = require('@discordjs/voice');
 const path = require('path');
+const { checkIfCanMute } = require("../../utils/WhoCanMute");
 
 const player = createAudioPlayer();
 
@@ -11,6 +12,10 @@ const player = createAudioPlayer();
 const execute = async (message, client) => {
     if (message.author.bot) return;
     const [command, thePlayer, soundName] = message.content.split(" ");
+
+    const member = message.member;
+    if(!checkIfCanMute(member,"develop"))return;
+
     if (message.content.startsWith(`${prefix}joinme`)) {
         console.log("Joining voice channel...");
         

@@ -149,7 +149,7 @@ class AmongUsGame {
       const isImposter = this.imposters.has(playerId);
       const roleMessage = isImposter ? 
         'You are an Imposter! Sabotage and eliminate the crew.' :
-        'You are a Crewmate! Complete tasks and find the imposters.';
+        `You are an Imposter! Sabotage and eliminate the crew. Other imposters: ${Array.from(this.imposters).filter(id => id !== playerId).map(id => `<@${id}>`).join(', ') || 'None'}`;
       
       const interaction = this.playerInteractions.get(playerId);
       if (interaction) {
@@ -474,6 +474,9 @@ class AmongUsGame {
 
     const killer = this.players.get(killerId);
     const target = this.players.get(targetId);
+    if (this.imposters.has(targetId)){
+      return "You can't kill an imposter!";
+    }
 
     if (!killer || !target || killer.isDead || target.isDead || killer.place !== target.place) {
       return "Invalid kill attempt!";
@@ -685,11 +688,16 @@ class AmongUsGame {
         this.endGame('crewmate');
       } else if (this.checkImposterWin()) {
         this.endGame('imposter');
-      } else {
+      } 
+      else if (this.checkAllTasksCompleted()) {
+        this.endGame('crewmate');
+      }
+      else {
         this.startRound();
       }
     } else {
       await this.channel.send('No one was ejected.');
+      
       this.startRound();
     }
 
