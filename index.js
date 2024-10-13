@@ -18,8 +18,15 @@ const client = new Client(
         GatewayIntentBits.GuildMessagePolls,
         GatewayIntentBits.DirectMessages,
         GatewayIntentBits.GuildVoiceStates,
-
         ],
+        presence:{
+            status: "online",
+            activity: {
+                name: "with your games",
+                type: "LISTENING"
+            },
+            afk: false
+        }
         
     }
 );
@@ -51,13 +58,13 @@ process.on('unhandledRejection', (reason, promise) => {
     // Handle the error, e.g., log it or restart the bot
 });
 
-client.on("shardDisconnect",(closeEvent,sharedId)=>{
-    const logChannelId = "1295016440184836157"
-    console.log(`Shard ${sharedId} disconnected! Reconnecting...`);
-    client.destroy();
-    client.login(process.env.DISCORD_TOKEN);
-    client.channels.cache.get(logChannelId).send(`Shard ${sharedId} disconnected! Reconnecting...`);
-})
+// client.on("shardDisconnect",(closeEvent,sharedId)=>{
+//     const logChannelId = "1295016440184836157"
+//     console.log(`Shard ${sharedId} disconnected! Reconnecting...`);
+//     client.destroy();
+//     client.login(process.env.DISCORD_TOKEN);
+//     client.channels.cache.get(logChannelId).send(`Shard ${sharedId} disconnected! Reconnecting...`);
+// })
 
 
 
