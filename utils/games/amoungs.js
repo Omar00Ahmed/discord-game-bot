@@ -27,7 +27,7 @@ class AmongUsGame {
     this.lastHintRound = 0;
 
     // Timer values as class members
-    this.lobbyWaitTime =  10000; // 1 minute
+    this.lobbyWaitTime =  30000; // 1 minute
     this.choosePlaceTime = 30000; // 30 seconds
     this.actionTime = 30000; // 30 seconds
     this.votingTime = 60000; // 1 minute
@@ -81,7 +81,7 @@ class AmongUsGame {
     });
 
     collector.on('end', collected => {
-      if (this.players.size < 4) {
+      if (this.gameState === "lobby") {
         this.channel.send('Not enough players joined. Game cancelled.');
         client.games.delete(this.channel.id);
         lobbyMessage.edit({ embeds: [this.createLobbyEmbed()], components: [] });
