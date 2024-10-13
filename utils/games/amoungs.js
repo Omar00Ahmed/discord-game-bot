@@ -1,5 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection,StringSelectMenuBuilder } = require('discord.js');
-
+const {Sleep} = require("../../utils/createDelay");
 const {checkIfCanMute} = require("../../utils/WhoCanMute")
 const path = require("path")
 
@@ -110,6 +110,7 @@ class AmongUsGame {
     this.assignRoles();
     this.initializeTasks();
     await this.sendGameStartMessage();
+    await Sleep(3000);
     this.startRound();
   }
 
