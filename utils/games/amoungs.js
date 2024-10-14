@@ -130,7 +130,7 @@ class AmongUsGame {
     this.assignRoles();
     this.initializeTasks();
     await this.sendGameStartMessage();
-    this.playAudio("sounds-pop-39222");
+    this.playAudio("sounds-pop-39222"); // updated
     await Sleep(5000);
     this.startRound();
   }
