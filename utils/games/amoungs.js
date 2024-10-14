@@ -24,6 +24,7 @@ class AmongUsGame {
     this.completedTasks = new Set();
     this.reportedThisRound = false;
     this.deadPlayers = new Set();
+    // set for muted players
     this.mutedPlayers = new Set();
     this.lastHintRound = 0;
 
