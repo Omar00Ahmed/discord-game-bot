@@ -1,7 +1,7 @@
 const { client } = require('../..');
 const AmongUsGame = require('./amoungs');
 const {ChannelType} = require("discord.js")
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus,VoiceConnectionStatus } = require('@discordjs/voice');
+const { joinVoiceChannel, createAudioPlayer, } = require('@discordjs/voice');
 
 const player = createAudioPlayer();
 

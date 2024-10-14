@@ -3,6 +3,8 @@ const {Sleep} = require("../../utils/createDelay");
 const {checkIfCanMute} = require("../../utils/WhoCanMute")
 const path = require("path")
 
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus,VoiceConnectionStatus } = require('@discordjs/voice');
+
 const {client} = require("../../index")
 
 class AmongUsGame {
@@ -36,6 +38,17 @@ class AmongUsGame {
     this.choosePlaceTime = 30000; // 30 seconds
     this.actionTime = 30000; // 30 seconds
     this.votingTime = 60000; // 1 minute
+  }
+
+  async playAudio(audioName){
+    try{
+      const filePath = path.join(__dirname, "..", "..", "public", "sounds", audioName + ".mp3");
+      const resource = createAudioResource(filePath);
+      this.audioPlayer.play(resource);
+      this.connection.subscribe(this.audioPlayer);
+    }catch(err){
+      console.error("Error playing audio:", err);
+    }
   }
 
   async startLobby() {
@@ -117,6 +130,7 @@ class AmongUsGame {
     this.assignRoles();
     this.initializeTasks();
     await this.sendGameStartMessage();
+    this.playAudio("sounds-pop-39222");
     await Sleep(5000);
     this.startRound();
   }
@@ -496,6 +510,7 @@ class AmongUsGame {
     
     // Announce the kill to the channel
     await this.channel.send(`# ⚠️ warning : someone got kiled search for him`);
+    this.playAudio("sounds-kill");
 
     // Notify the killed player
     const interaction = this.playerInteractions.get(targetId);
@@ -573,6 +588,7 @@ class AmongUsGame {
       content: `# Emergency Meeting! <@${reporter.id}> has reported <@${deadPlayer.name}>'s body in ${reporter.place}!`,
       files: [{ attachment: this.getImagePath(`someone-die.gif`), name: `someone-die.gif` }]
     });
+    this.playAudio("sounds-emergency");
 
     this.startVoting();
     return "A body has been reported! Emergency meeting called!";
@@ -720,6 +736,7 @@ class AmongUsGame {
         content:`# <@${ejectedPlayer.id}> has been ejected! They were ${isImposter ? 'the Imposter' : 'a Crewmate'}.`,
         files: [{ attachment: this.getImagePath(isImposter? 'imposter-dead.gif' : 'not-imposter-dead.gif'), name: `${isImposter? 'imposter-dead' : 'not-imposter-dead'}.gif` }]
       });
+      this.playAudio("sounds-eject");
 
       if (this.checkAllTasksCompleted()) {
         this.endGame('crewmate');
@@ -782,6 +799,8 @@ class AmongUsGame {
 
     await this.channel.send({ embeds: [embed] });
 
+    this.playAudio(winner === "imposter" ? "sounds-imposter-win" : "sounds-crewmate-win");
+
     
     this.mutedPlayers.forEach(playerId =>{
       this.channel.permissionOverwrites.delete(playerId);
@@ -797,8 +816,6 @@ class AmongUsGame {
       .join('\n');
   }
   
-
-
 
   getCrewmatesList() {
     return Array.from(this.players.values())
