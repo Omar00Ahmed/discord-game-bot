@@ -147,9 +147,9 @@ class AmongUsGame {
 
     for (const [playerId, playerData] of this.players) {
       const isImposter = this.imposters.has(playerId);
-      const roleMessage = isImposter ? 
-        'You are an Imposter! Sabotage and eliminate the crew.' :
-        `You are an Imposter! Sabotage and eliminate the crew. Other imposters: ${Array.from(this.imposters).filter(id => id !== playerId).map(id => `<@${id}>`).join(', ') || 'None'}`;
+      const roleMessage = isImposter ?
+      `You are an Imposter! Sabotage and eliminate the crew. Other imposters: ${Array.from(this.imposters).filter(id => id !== playerId).map(id => `<@${id}>`).join(', ') || 'None'}`: 
+        'You are a crewmate sabotage and finish tasks' ;
       
       const interaction = this.playerInteractions.get(playerId);
       if (interaction) {
@@ -196,27 +196,41 @@ class AmongUsGame {
     const filter = i => this.players.has(i.user.id) && !this.players.get(i.user.id).isDead;
     const collector = message.createMessageComponentCollector({ filter, time: this.choosePlaceTime });
 
+    let votedPlayers = 0;
+    const alivePlayers = Array.from(this.players.values()).filter(p => !p.isDead).length;
+
     collector.on('collect', async i => {
       if (i.customId.startsWith('place_')) {
         const player = this.players.get(i.user.id);
+        if (!player.place) {
+          votedPlayers++;
+        }
         player.place = i.customId.split('_')[1];
         this.playerInteractions.set(i.user.id, i);
         await i.reply({ content: `You have chosen to go to ${player.place}.`, ephemeral: true });
+
+        if (votedPlayers === alivePlayers) {
+          collector.stop('allVoted');
+        }
       }
     });
 
-    collector.on('end', collected => {
+    collector.on('end', (collected, reason) => {
       // Assign random places to players who didn't choose
       for (const [playerId, playerData] of this.players) {
         if (!playerData.place && !playerData.isDead) {
           playerData.place = this.places[Math.floor(Math.random() * this.places.length)];
         }
       }
-      message.edit({ components: [] }); // Disable buttons after time is up
+      message.edit({ components: [] }); // Disable buttons after voting ends
     });
 
-    // Wait for the full time before moving to the next phase
-    await new Promise(resolve => setTimeout(resolve, this.choosePlaceTime));
+    // Wait for the full time or until all players have voted
+    await new Promise(resolve => {
+      collector.on('end', (collected, reason) => {
+        resolve();
+      });
+    });
   }
 
   createTaskButtons() {
@@ -281,12 +295,16 @@ class AmongUsGame {
 
       const interaction = this.playerInteractions.get(playerId);
       if (interaction) {
-        await interaction.followUp({
-          embeds: [embed],
-          components: actionButtons,
-          ephemeral: true,
-          files: [{ attachment: this.getImagePath(`places-${playerData.place}.png`), name: `places-${playerData.place}.png`}]
-        });
+        try {
+          await interaction.deferReply({ ephemeral: true });
+          await interaction.editReply({
+            embeds: [embed],
+            components: actionButtons,
+            files: [{ attachment: this.getImagePath(`places-${playerData.place}.png`), name: `places-${playerData.place}.png`}]
+          });
+        } catch (error) {
+          console.error(`Error sending interaction response for player ${playerId}:`, error);
+        }
       }
     }
 
@@ -356,7 +374,8 @@ class AmongUsGame {
         new ButtonBuilder()
           .setCustomId('report_sus')
           .setLabel('Report Suspicious Player')
-          .setStyle(ButtonStyle.Secondary)
+          .setEmoji("⚠️")
+          .setStyle(ButtonStyle.Primary)
       );
     }
 
@@ -383,42 +402,19 @@ class AmongUsGame {
     this.reportedThisRound = true;
     this.gameState = 'voting';
 
-    const suspiciousPlayers = Array.from(this.players.values())
-      .filter(p => !p.isDead && p.id !== reporterId)
-      .map(p => ({
-        label: `${p.name}`,
-        value: `${p.id}`
-      }));
-
-    const selectMenu = new ActionRowBuilder()
-      .addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId('select_sus')
-          .setPlaceholder('Select a suspicious player')
-          .addOptions(suspiciousPlayers)
-      );
+    this.reportedThisRound = true;
+    this.gameState = 'voting';
 
     const interaction = this.playerInteractions.get(reporterId);
     if (interaction) {
       await interaction.followUp({
-        content: 'Select a player you find suspicious:',
-        components: [selectMenu],
+        content: 'You have called an emergency meeting!',
         ephemeral: true
       });
     }
 
-    // Wait for the reporter to select a suspicious player
-    const filter = i => i.customId === 'select_sus' && i.user.id === reporterId;
-    try {
-      const response = await interaction.channel.awaitMessageComponent({ filter, time: 30000 });
-      const suspiciousPlayerId = response.values[0];
-      const suspiciousPlayer = this.players.get(suspiciousPlayerId);
-
-      await this.channel.send(`Emergency Meeting! ${reporter.name} has reported ${suspiciousPlayer.name} as suspicious!`);
-      this.startVoting();
-    } catch (error) {
-      await interaction.followUp({ content: 'You did not select a player in time.', ephemeral: true });
-    }
+    await this.channel.send(`Emergency Meeting! ${reporter.name} has called an emergency meeting!`);
+    this.startVoting();  
   }
 
 
@@ -446,7 +442,7 @@ class AmongUsGame {
 
   async handleTask(playerId) {
     const player = this.players.get(playerId);
-    if (!player || player.isDead || this.imposters.has(player.id)) return "You can't do tasks!";
+    if (!player || player.isDead || this.imposters.has(player.id) || this.reportedThisRound) return "You can't do tasks!";
 
     const tasksRemaining = this.tasks.get(player.place);
     if (tasksRemaining <= 0) {
@@ -497,7 +493,7 @@ class AmongUsGame {
     const interaction = this.playerInteractions.get(targetId);
     if (interaction) {
       await interaction.followUp({ 
-        content: "You have been killed! You can no longer participate in the game, but you can watch silently.", 
+        content: `You have been killed! You can no longer participate in the game, but you can watch silently. imposter killed you : <@${killerId}> `, 
         ephemeral: true,
         files: [{ attachment: this.getImagePath(`kill.gif`), name: `kill.gif` }] 
 
@@ -563,7 +559,10 @@ class AmongUsGame {
 
     // Announce the report to the channel
     const deadPlayer = this.players.get(reportedBody[0]);
-    await this.channel.send(`Emergency Meeting! ${reporter.name} has reported ${deadPlayer.name}'s body in ${reporter.place}!`);
+    await this.channel.send({
+      content: `# Emergency Meeting! <@${reporter.id}> has reported <@${deadPlayer.name}>'s body in ${reporter.place}!`,
+      files: [{ attachment: this.getImagePath(`someone-die.gif`), name: `someone-die.gif` }]
+    });
 
     this.startVoting();
     return "A body has been reported! Emergency meeting called!";
@@ -584,14 +583,26 @@ class AmongUsGame {
     const filter = i => this.players.has(i.user.id) && !this.players.get(i.user.id).isDead;
     const collector = message.createMessageComponentCollector({ filter, time: this.votingTime });
 
+    let votedPlayers = 0;
+    const alivePlayers = Array.from(this.players.values()).filter(p => !p.isDead).length;
+
     collector.on('collect', async i => {
       const voterId = i.user.id;
       const votedId = i.customId.split('_')[1];
+      
+      if (!this.votes.has(voterId)) {
+        votedPlayers++;
+      }
+      
       this.votes.set(voterId, votedId);
       await i.reply({ content: `You have voted for ${this?.players?.get(votedId)?.name || this.votes.get(votedId)}.`, ephemeral: true });
       
       // Update vote counts
       await this.updateVoteCounts(message);
+      
+      if (votedPlayers === alivePlayers) {
+        collector.stop();
+      }
     });
 
     collector.on('end', collected => {
@@ -681,23 +692,31 @@ class AmongUsGame {
       ejectedPlayer.isDead = true;
       this.deadPlayers.add(ejectedId);
 
-      const isImposter =  this.imposters.has(ejectedId);
-      await this.channel.send(`${ejectedPlayer.name} has been ejected! They were ${isImposter ? 'the Imposter' : 'a Crewmate'}.`);
+      
+      // Remove access to send messages for the ejected player
+      await this.channel.permissionOverwrites.edit(ejectedId, { SendMessages: false });
 
-      if (isImposter) {
-        this.endGame('crewmate');
-      } else if (this.checkImposterWin()) {
-        this.endGame('imposter');
-      } 
-      else if (this.checkAllTasksCompleted()) {
+
+      const isImposter =  this.imposters.has(ejectedId);
+      await this.channel.send({
+        content:`# <@${ejectedPlayer.id}> has been ejected! They were ${isImposter ? 'the Imposter' : 'a Crewmate'}.`,
+        files: [{ attachment: this.getImagePath(isImposter? 'imposter-dead.gif' : 'not-imposter-dead.gif'), name: `${isImposter? 'imposter-dead' : 'not-imposter-dead'}.gif` }]
+      });
+
+      if (this.checkAllTasksCompleted()) {
         this.endGame('crewmate');
       }
+      else if (this.checkAllImpostersDead()) {
+        this.endGame('crewmate');
+      } 
+      else if (this.checkImposterWin()) {
+        this.endGame('imposter');
+      } 
       else {
         this.startRound();
       }
     } else {
-      await this.channel.send('No one was ejected.');
-      
+      await this.channel.send('# No one was ejected.');
       this.startRound();
     }
 
@@ -707,6 +726,16 @@ class AmongUsGame {
     this.votes.clear();
     this.gameState = 'playing';
     await message.edit({ components: [] }); // Disable voting buttons
+  }
+
+  checkAllTasksCompleted() {
+    return Array.from(this.players.values())
+      .filter(player => !this.imposters.has(player.id))
+      .every(player => player.tasks === 0);
+  }
+  
+  checkAllImpostersDead() {
+    return Array.from(this.imposters).every(imposter => this.deadPlayers.has(imposter));
   }
 
 
