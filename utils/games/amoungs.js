@@ -200,6 +200,7 @@ class AmongUsGame {
   }
 
   async startRound() {
+    if (this.gameState === "ended" || !this) return;
     this.roundNumber++;
     this.reportedThisRound = false;
     this.killsThisRound.clear(); // Reset kills at the start of each round
@@ -209,6 +210,7 @@ class AmongUsGame {
 
 
   async choosePlaces() {
+    if (this.gameState === "ended" || !this) return;
     const embed = new EmbedBuilder()
       .setTitle(`Round ${this.roundNumber} - Choose Your Location`)
       .setDescription('Select a place to go to:')
@@ -222,13 +224,17 @@ class AmongUsGame {
       files: [{ attachment: this.getImagePath("places-main.png"), name: "places-main.png" }]
     });
 
-    const filter = i => this.players.has(i.user.id) && !this.players.get(i.user.id).isDead;
+    const filter = i => this.players.has(i.user.id) ;
     const collector = message.createMessageComponentCollector({ filter, time: this.choosePlaceTime });
 
     let votedPlayers = 0;
     const alivePlayers = Array.from(this.players.values()).filter(p => !p.isDead).length;
 
     collector.on('collect', async i => {
+      if(this.players.get(i.user.id).isDead){
+        await i.reply({ content: 'يا ميت 🤣🤣', ephemeral: true });
+        return;
+      }
       if (i.customId.startsWith('place_')) {
         const player = this.players.get(i.user.id);
         if (!player.place) {
@@ -449,7 +455,7 @@ class AmongUsGame {
     }
     this.playAudio("sounds-emergency")
 
-    await this.channel.send(`Emergency Meeting! ${reporter.name} has called an emergency meeting!`);
+    await this.channel.send(`Emergency Meeting! <@${reporter.id}> has called an emergency meeting!`);
     this.startVoting();  
   }
 
@@ -478,7 +484,9 @@ class AmongUsGame {
 
   async handleTask(playerId) {
     const player = this.players.get(playerId);
-    if (!player || player.isDead || this.imposters.has(player.id) || this.reportedThisRound) return "You can't do tasks!";
+    if (!player || player.isDead || this.imposters.has(player.id) || this.reportedThisRound) {
+      return "You can't do tasks!";
+    }
 
     const tasksRemaining = this.tasks.get(player.place);
     if (tasksRemaining <= 0) {
@@ -532,11 +540,18 @@ class AmongUsGame {
     const interaction = this.playerInteractions.get(playerId);
     if (!interaction) return false;
 
-    const message = await interaction.followUp({
-      embeds: [embed],
-      components: [row],
-      ephemeral: true
-    });
+    let message;
+    try {
+      message = await interaction.followUp({
+        embeds: [embed],
+        components: [row],
+        ephemeral: true,
+        fetchReply: true
+      });
+    } catch (error) {
+      console.error('Error sending task question:', error);
+      return false;
+    }
 
     try {
       const filter = i => i.user.id === playerId && i.customId.startsWith('answer_');
@@ -545,14 +560,27 @@ class AmongUsGame {
       const selectedAnswer = response.customId.split('_')[1];
       const isCorrect = selectedAnswer === correctAnswer;
 
-      await response.update({
-        content: isCorrect ? 'Correct answer!' : `Incorrect. The correct answer was ${correctAnswer}.`,
-        components: []
-      });
+      const replyOptions = {
+        content: isCorrect ? 'Correct answer! Task Completed' : `Incorrect. The correct answer was ${correctAnswer}.`,
+        components: [],
+        ephemeral: true
+      };
+
+      try {
+        await response.update(replyOptions);
+      } catch (error) {
+        console.error('Error updating response:', error);
+        await interaction.followUp(replyOptions);
+      }
 
       return isCorrect;
     } catch (error) {
-      await interaction.followUp({ content: 'You did not answer in time. Task failed.', ephemeral: true });
+      console.error('Error handling task response:', error);
+      try {
+        await interaction.followUp({ content: 'You did not answer in time. Task failed.', ephemeral: true });
+      } catch (followUpError) {
+        console.error('Error sending follow-up message:', followUpError);
+      }
       return false;
     }
   }
@@ -680,7 +708,7 @@ class AmongUsGame {
     // Announce the report to the channel
     const deadPlayer = this.players.get(reportedBody[0]);
     await this.channel.send({
-      content: `# Emergency Meeting! <@${reporter.id}> has reported <@${deadPlayer.name}>'s body in ${reporter.place}!`,
+      content: `# Emergency Meeting! <@${reporter.id}> has reported <@${deadPlayer.id}>'s body in ${reporter.place}!`,
       files: [{ attachment: this.getImagePath(`someone-die.gif`), name: `someone-die.gif` }]
     });
     this.playAudio("sounds-emergency");
@@ -843,19 +871,19 @@ class AmongUsGame {
         this.endGame('imposter');
       } 
       else {
-        
+        console.log("from here condition")
+        this.gameState = 'playing';
         this.startRound();
       }
     } else {
       await this.channel.send('# No one was ejected.');
+      this.gameState = 'playing';
       this.startRound();
     }
 
     // Remove reported bodies after vote
     this.deadBodies.clear();
-
     this.votes.clear();
-    this.gameState = 'playing';
     await message.edit({ components: [] }); // Disable voting buttons
   }
 

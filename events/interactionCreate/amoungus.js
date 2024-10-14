@@ -19,8 +19,10 @@ module.exports = {
         // Place selection is handled in the game logic
         return;
       } else if (interaction.customId === 'task') {
+        await interaction.deferReply({ ephemeral: true });
         const result = await game.handleTask(playerId);
-        await interaction.reply({ content: result, ephemeral: true });
+        await interaction.deleteReply();
+        await interaction.followUp({ content: result, ephemeral: true });
       } else if (interaction.customId === 'kill') {
         const killablePlayersButtons = new ActionRowBuilder().addComponents(
           ...Array.from(game.players.values())
@@ -62,8 +64,12 @@ module.exports = {
         // await interaction.reply({ content: result, ephemeral: true });
       }
     } catch (error) {
-      console.error('Error handling interaction:', error);
+      try{
+        console.error('Error handling interaction:', error);
       await interaction.reply({ content: 'An error occurred while processing your action.', ephemeral: true });
+      }catch(err){
+        console.error(`Error sending error message to user:`);
+      }
     }
   },
 };
