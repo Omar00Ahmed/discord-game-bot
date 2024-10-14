@@ -35,10 +35,17 @@ class AmongUsGame {
     this.audioPlayer = audioPlayer;
 
     // Timer values as class members
-    this.lobbyWaitTime =  30000; // 1 minute
+    this.lobbyWaitTime =  3 * 60 * 1000; // 1 minute
     this.choosePlaceTime = 30000; // 30 seconds
     this.actionTime = 30000; // 30 seconds
     this.votingTime = 60000; // 1 minute
+    this.taskQuestions = [
+      { question: "What is 2 + 2?", answers: ["3", "4", "5", "6"], correctAnswer: "4" },
+      { question: "What color is the sky?", answers: ["Red", "Green", "Blue", "Yellow"], correctAnswer: "Blue" },
+      { question: "How many continents are there?", answers: ["5", "6", "7", "8"], correctAnswer: "7" },
+      // Add more questions as needed
+    ];
+
   }
 
   async playAudio(audioName){
@@ -84,7 +91,7 @@ class AmongUsGame {
           }
         } else if (i.customId === 'start_game') {
           const member = await i.guild.members.fetch(i.user.id);
-          if (!this.checkIfCanMute(member, "startGame")) return;
+          if (!checkIfCanMute(member, "startGame")) return;
           if (this.players.size >= 4) {
             this.gameState = 'waiting';
             collector.stop();
@@ -297,9 +304,8 @@ class AmongUsGame {
   }
 
   async performActions() {
-    if(this.gameState === "ended"){
-      return;
-    }
+    if (this.gameState === "ended") return;
+    
     this.completedTasks.clear();
 
     const actionPromises = [];
@@ -308,7 +314,8 @@ class AmongUsGame {
       if (playerData.isDead) continue;
 
       const isImposter = this.imposters.has(playerId);
-      const actionButtons = this.createActionButtons(playerData.place, isImposter);
+      const hasKilled = this.killsThisRound.has(playerId);
+      const actionButtons = this.createActionButtons(playerData.place, isImposter, hasKilled);
 
       const embed = new EmbedBuilder()
         .setTitle(`Round ${this.roundNumber} - Your Turn`)
@@ -368,7 +375,7 @@ class AmongUsGame {
 
 
 
-  createActionButtons(place, isImposter) {
+  createActionButtons(place, isImposter, hasKilled = false) {
     const buttons = [];
 
     if (!isImposter) {
@@ -378,7 +385,7 @@ class AmongUsGame {
           .setLabel('Do Task')
           .setStyle(ButtonStyle.Success)
       );
-    } else {
+    } else if (!hasKilled) {
       buttons.push(
         new ButtonBuilder()
           .setCustomId('kill')
@@ -417,6 +424,7 @@ class AmongUsGame {
 
     return [new ActionRowBuilder().addComponents(buttons)];
   }
+
 
   async handleReportSus(reporterId) {
     const reporter = this.players.get(reporterId);
@@ -481,15 +489,72 @@ class AmongUsGame {
       return "You've already completed a task this round!";
     }
 
-    this.tasks.set(player.place, tasksRemaining - 1);
-    this.completedTasks.add(playerId);
-    
-    if (this.checkCrewmateWin()) {
-      this.endGame('crewmate');
-      return "Task completed! Crewmates win!";
+    const taskQuestion = this.getRandomTaskQuestion();
+    const result = await this.askTaskQuestion(playerId, taskQuestion);
+
+    if (result) {
+      this.tasks.set(player.place, tasksRemaining - 1);
+      this.completedTasks.add(playerId);
+      
+      if (this.checkCrewmateWin()) {
+        this.endGame('crewmate');
+        return "Task completed! Crewmates win!";
+      }
+      await this.updateActionButtons(playerId);
+      return `Task completed in ${player.place}!`;
+    } else {
+      return "Task failed. Try again next round!";
     }
-    
-    return `Task completed in ${player.place}!`;
+  }
+
+  getRandomTaskQuestion() {
+    const randomIndex = Math.floor(Math.random() * this.taskQuestions.length);
+    return this.taskQuestions[randomIndex];
+  }
+
+  async askTaskQuestion(playerId, taskQuestion) {
+    const { question, answers, correctAnswer } = taskQuestion;
+
+    const embed = new EmbedBuilder()
+      .setTitle('Task Question')
+      .setDescription(question)
+      .setColor('#00ff00');
+
+    const answerButtons = answers.map(answer => 
+      new ButtonBuilder()
+        .setCustomId(`answer_${answer}`)
+        .setLabel(answer)
+        .setStyle(ButtonStyle.Primary)
+    );
+
+    const row = new ActionRowBuilder().addComponents(answerButtons);
+
+    const interaction = this.playerInteractions.get(playerId);
+    if (!interaction) return false;
+
+    const message = await interaction.followUp({
+      embeds: [embed],
+      components: [row],
+      ephemeral: true
+    });
+
+    try {
+      const filter = i => i.user.id === playerId && i.customId.startsWith('answer_');
+      const response = await message.awaitMessageComponent({ filter, time: 30000 });
+
+      const selectedAnswer = response.customId.split('_')[1];
+      const isCorrect = selectedAnswer === correctAnswer;
+
+      await response.update({
+        content: isCorrect ? 'Correct answer!' : `Incorrect. The correct answer was ${correctAnswer}.`,
+        components: []
+      });
+
+      return isCorrect;
+    } catch (error) {
+      await interaction.followUp({ content: 'You did not answer in time. Task failed.', ephemeral: true });
+      return false;
+    }
   }
 
 
@@ -537,6 +602,9 @@ class AmongUsGame {
       await this.channel.permissionOverwrites.edit(targetId, { SendMessages: false });
       this.mutedPlayers.add(targetId);
     }
+
+    // Update the killer's action buttons
+    await this.updateActionButtons(killerId);
     
     if (this.checkImposterWin()) {
       this.endGame('imposter');
@@ -545,6 +613,23 @@ class AmongUsGame {
     
     return `You have killed ${target.name}!`;
   }
+
+  async updateActionButtons(killerId) {
+    const killer = this.players.get(killerId);
+    // const updatedButtons = this.createActionButtons(killer.place, true, true);
+
+    const interaction = this.playerInteractions.get(killerId);
+    if (interaction) {
+      try {
+        await interaction.editReply({
+          components: []
+        });
+      } catch (error) {
+        console.error(`Error updating action buttons for player ${killerId}:`, error);
+      }
+    }
+  }
+
 
 
   async handleHint(playerId) {
@@ -817,7 +902,9 @@ class AmongUsGame {
       this.channel.permissionOverwrites.delete(playerId);
     })
 
-    connection.destroy();
+    setTimeout(() => {
+      this.connection.destroy();
+    }, 10000);
     client.games.delete(this.channel.id)
   }
 
@@ -830,7 +917,7 @@ class AmongUsGame {
 
   getCrewmatesList() {
     return Array.from(this.players.values())
-      .filter(!this.imposters.has(p.id))
+      .filter(p => !this.imposters.has(p.id))
       .map(p => `${p.name}${this.deadPlayers.has(p.id) ? ' 💀' : ''}`)
       .join('\n');
   }
