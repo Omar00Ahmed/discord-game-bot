@@ -24,6 +24,7 @@ class AmongUsGame {
     this.completedTasks = new Set();
     this.reportedThisRound = false;
     this.deadPlayers = new Set();
+    this.mutedPlayers = new Set();
     this.lastHintRound = 0;
 
     // Timer values as class members
@@ -296,7 +297,9 @@ class AmongUsGame {
       const interaction = this.playerInteractions.get(playerId);
       if (interaction) {
         try {
-          await interaction.deferReply({ ephemeral: true });
+          if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply({ ephemeral: true });
+          }
           await interaction.editReply({
             embeds: [embed],
             components: actionButtons,
@@ -501,6 +504,8 @@ class AmongUsGame {
       
       // Remove the player's ability to send messages in the channel
       await this.channel.permissionOverwrites.edit(targetId, { SendMessages: false });
+      this.mutedPlayers.add(targetId);
+
       
     }
     
@@ -590,11 +595,19 @@ class AmongUsGame {
       const voterId = i.user.id;
       const votedId = i.customId.split('_')[1];
       
+      
+      const voter = this.players.get(voterId);
+      if (!voter || voter.isDead) {
+        await i.reply({ content: "You can't vote because you're either not in the game or dead!", ephemeral: true });
+        return;
+      }
+
       if (!this.votes.has(voterId)) {
         votedPlayers++;
       }
       
       this.votes.set(voterId, votedId);
+      console.log(this?.players?.get(votedId));
       await i.reply({ content: `You have voted for ${this?.players?.get(votedId)?.name || this.votes.get(votedId)}.`, ephemeral: true });
       
       // Update vote counts
@@ -695,7 +708,7 @@ class AmongUsGame {
       
       // Remove access to send messages for the ejected player
       await this.channel.permissionOverwrites.edit(ejectedId, { SendMessages: false });
-
+      this.mutedPlayers.add(ejectedId);
 
       const isImposter =  this.imposters.has(ejectedId);
       await this.channel.send({
@@ -763,6 +776,13 @@ class AmongUsGame {
       .setColor(winner === 'imposter' ? '#ff0000' : '#00ff00');
 
     await this.channel.send({ embeds: [embed] });
+
+    
+    this.mutedPlayers.forEach(playerId =>{
+      this.channel.permissionOverwrites.delete(playerId);
+    })
+
+    
     client.games.delete(this.channel.id)
   }
 
