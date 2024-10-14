@@ -148,6 +148,10 @@ class AmongUsGame {
     this.initializeTasks();
     this.playAudio("pop-39222"); // updated
     await this.sendGameStartMessage();
+<<<<<<< HEAD
+=======
+    this.playAudio("pop-39222"); // updated
+>>>>>>> c497d35 (updated)
     await Sleep(5000);
     this.startRound(false);
   }
@@ -545,8 +549,15 @@ class AmongUsGame {
       });
     }
     this.playAudio("sounds-emergency")
+<<<<<<< HEAD
 
+<<<<<<< HEAD
     await this.channel.send(`Emergency Meeting! <@${reporter.id}> has called an emergency meeting!`);
+=======
+=======
+>>>>>>> c497d35 (updated)
+    await this.channel.send(`Emergency Meeting! ${reporter.name} has called an emergency meeting!`);
+>>>>>>> 260ac5e (updated)
     this.startVoting();  
   }
 
@@ -1043,9 +1054,13 @@ class AmongUsGame {
       this.channel.permissionOverwrites.delete(playerId);
     })
 
+<<<<<<< HEAD
     setTimeout(() => {
       this.connection.destroy();
     }, 10000);
+=======
+    this.connection.destroy();
+>>>>>>> c497d35 (updated)
     client.games.delete(this.channel.id)
   }
 
