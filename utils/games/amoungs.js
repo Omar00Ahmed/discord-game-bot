@@ -6,7 +6,7 @@ const path = require("path")
 const {client} = require("../../index")
 
 class AmongUsGame {
-  constructor(channel,theClient) {
+  constructor(channel,connection,audioPlayer) {
     this.channel = channel;
     // this.client = theClient;
     this.players = new Map();
@@ -27,6 +27,9 @@ class AmongUsGame {
     // set for muted players
     this.mutedPlayers = new Set();
     this.lastHintRound = 0;
+
+    this.connection = connection;
+    this.audioPlayer = audioPlayer;
 
     // Timer values as class members
     this.lobbyWaitTime =  30000; // 1 minute
@@ -86,6 +89,7 @@ class AmongUsGame {
     collector.on('end', collected => {
       if (this.gameState === "lobby") {
         this.channel.send('Not enough players joined. Game cancelled.');
+        this.connection.destroy();
         client.games.delete(this.channel.id);
         lobbyMessage.edit({ embeds: [this.createLobbyEmbed()], components: [] });
       }
@@ -783,7 +787,7 @@ class AmongUsGame {
       this.channel.permissionOverwrites.delete(playerId);
     })
 
-    
+    connection.destroy();
     client.games.delete(this.channel.id)
   }
 
