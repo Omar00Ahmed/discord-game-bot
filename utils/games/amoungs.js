@@ -26,6 +26,7 @@ class AmongUsGame {
     this.completedTasks = new Set();
     this.reportedThisRound = false;
     this.deadPlayers = new Set();
+    this.killsThisRound = new Map(); // New property to track kills per round
     // set for muted players
     this.mutedPlayers = new Set();
     this.lastHintRound = 0;
@@ -129,8 +130,8 @@ class AmongUsGame {
     this.gameState = 'playing';
     this.assignRoles();
     this.initializeTasks();
+    this.playAudio("pop-39222"); // updated
     await this.sendGameStartMessage();
-    this.playAudio("sounds-pop-39222"); // updated
     await Sleep(5000);
     this.startRound();
   }
@@ -194,6 +195,7 @@ class AmongUsGame {
   async startRound() {
     this.roundNumber++;
     this.reportedThisRound = false;
+    this.killsThisRound.clear(); // Reset kills at the start of each round
     await this.choosePlaces();
     await this.performActions();
   }
@@ -295,6 +297,9 @@ class AmongUsGame {
   }
 
   async performActions() {
+    if(this.gameState === "ended"){
+      return;
+    }
     this.completedTasks.clear();
 
     const actionPromises = [];
@@ -434,6 +439,7 @@ class AmongUsGame {
         ephemeral: true
       });
     }
+    this.playAudio("sounds-emergency")
 
     await this.channel.send(`Emergency Meeting! ${reporter.name} has called an emergency meeting!`);
     this.startVoting();  
@@ -492,7 +498,8 @@ class AmongUsGame {
 
     const killer = this.players.get(killerId);
     const target = this.players.get(targetId);
-    if (this.imposters.has(targetId)){
+    
+    if (this.imposters.has(targetId)) {
       return "You can't kill an imposter!";
     }
 
@@ -500,16 +507,21 @@ class AmongUsGame {
       return "Invalid kill attempt!";
     }
 
-    if(this.reportedThisRound){
+    if (this.reportedThisRound) {
       return "A body has already been reported this round!";
+    }
+
+    if (this.killsThisRound.has(killerId)) {
+      return "You have already killed someone this round!";
     }
 
     target.isDead = true;
     this.deadPlayers.add(targetId);
     this.deadBodies.set(targetId, target.place);
+    this.killsThisRound.set(killerId, targetId); // Record the kill for this round
     
     // Announce the kill to the channel
-    await this.channel.send(`# ⚠️ warning : someone got kiled search for him`);
+    await this.channel.send(`# ⚠️ warning : someone got killed search for him`);
     this.playAudio("sounds-kill");
 
     // Notify the killed player
@@ -519,14 +531,11 @@ class AmongUsGame {
         content: `You have been killed! You can no longer participate in the game, but you can watch silently. imposter killed you : <@${killerId}> `, 
         ephemeral: true,
         files: [{ attachment: this.getImagePath(`kill.gif`), name: `kill.gif` }] 
-
       });
       
       // Remove the player's ability to send messages in the channel
       await this.channel.permissionOverwrites.edit(targetId, { SendMessages: false });
       this.mutedPlayers.add(targetId);
-
-      
     }
     
     if (this.checkImposterWin()) {
@@ -536,6 +545,7 @@ class AmongUsGame {
     
     return `You have killed ${target.name}!`;
   }
+
 
   async handleHint(playerId) {
     if (this.roundNumber - this.lastHintRound < 3) {
@@ -748,6 +758,7 @@ class AmongUsGame {
         this.endGame('imposter');
       } 
       else {
+        
         this.startRound();
       }
     } else {
