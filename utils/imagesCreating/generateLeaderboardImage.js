@@ -2,7 +2,7 @@ const {createCanvas,registerFont,loadImage} = require('canvas');
 const path = require('path'); // Import path to handle local file paths
 const {AttachmentBuilder} = require("discord.js")
 // Independent function to generate leaderboard image
-registerFont(path.join(__dirname, '../public/fonts',"Arial-Unicode-MS.ttf"), { family: 'myCustomFont' });
+registerFont(path.join(__dirname, '../../public/fonts',"Noto-sans.ttf"), { family: 'myCustomFont' });
 async function generateBalancedLeaderboardImage(users) {
     const width = 900; // Canvas width
     const height = 150 + (users.length * 80) + 100; // Adjust height based on users and space for logo
