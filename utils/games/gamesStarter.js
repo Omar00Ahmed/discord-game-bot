@@ -1,8 +1,8 @@
 const { client } = require('../..');
 const AmongUsGame = require('./amoungs');
 const {ChannelType} = require("discord.js")
-const { joinVoiceChannel, createAudioPlayer, } = require('@discordjs/voice');
-
+const { joinVoiceChannel, createAudioPlayer,createAudioResource } = require('@discordjs/voice');
+const path = require("path");
 const player = createAudioPlayer();
 
 const gameVoiceChanelId = "1295171888561258506";
@@ -35,6 +35,12 @@ module.exports = {
     message.client.games.set(message.channelId, game);
     await game.startLobby();
     await message.reply('A new Among Us game is starting! Join the lobby.');
+    soundFile = path.join(__dirname, '../../public/sounds', 'amogus.mp3');
+    const resource = createAudioResource(soundFile);
+    player.play(resource);
+    connection.subscribe(player);
     
   },
 };
+
+//games

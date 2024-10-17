@@ -18,7 +18,7 @@ const allowedRoles = {
 const checkIfCanMute = (member,usage) =>{
     const roles = member.roles.cache
     const rolesTocheck = allowedRoles[usage]
-    console.log(rolesTocheck);
+    // console.log(rolesTocheck);
     for(let k in rolesTocheck){
         if(roles.has(rolesTocheck[k])) return true;
     }
