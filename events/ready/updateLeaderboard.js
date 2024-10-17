@@ -12,7 +12,7 @@ async function execute(client) {
         const playersData = await Promise.all(topPlayers.map(async (player) => {
             const user = await client.users.fetch(player.discord_id);
             const imageUrl = user.displayAvatarURL({ extension:"png", size: 128 });
-            const displayName = user.displayName;
+            const displayName = user.username;
             return { ...player, avatarURL:imageUrl, username:displayName };
         }));        
             // const topPlayersString = topPlayers.map((player, index) => `${index + 1}. <@${player.discord_id}>: ${player.points} 💎`).join("\n");
