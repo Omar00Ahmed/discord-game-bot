@@ -42,7 +42,7 @@ const execute = async (message, client) => {
             if (!["1293358588366028931"].includes(message.channelId)) {
                 return message.reply(`يمكن كتابة هذا الامر فقط في <#${["1293358588366028931"][0]}> | ❌`);
             }
-            await handleTopPlayers(message);
+            await handleTopPlayers(message, client);
             break;
         case "اجعل":
             await handleSetPoints(message, args);
@@ -108,7 +108,7 @@ async function handleResetPoints(message) {
     }
 }
 
-async function handleTopPlayers(message) {
+async function handleTopPlayers(message, client) {
     
         const { topPlayers } = await getTopPlayers(10);
         const playersData = await Promise.all(topPlayers.map(async (player) => {

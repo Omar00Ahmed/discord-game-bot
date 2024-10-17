@@ -1,11 +1,12 @@
-const Canvas = require('canvas');
+const {createCanvas,registerFont,loadImage} = require('canvas');
 const path = require('path'); // Import path to handle local file paths
 const {AttachmentBuilder} = require("discord.js")
 // Independent function to generate leaderboard image
+registerFont('../../public/fonts/Arial-Unicode-MS.ttf', { family: 'myCustomFont' });
 async function generateBalancedLeaderboardImage(users) {
     const width = 900; // Canvas width
     const height = 150 + (users.length * 80) + 100; // Adjust height based on users and space for logo
-    const canvas = Canvas.createCanvas(width, height);
+    const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
     // Gradient background
@@ -17,7 +18,7 @@ async function generateBalancedLeaderboardImage(users) {
 
     // Title Styling
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 50px Sans-serif';
+    ctx.font = 'bold 50px myCustomFont';
     ctx.shadowColor = '#000000';
     ctx.shadowBlur = 10;
     ctx.fillText('🏆 Top Players', width / 2 - ctx.measureText('🏆 Top Players').width / 2, 80);
@@ -42,11 +43,11 @@ async function generateBalancedLeaderboardImage(users) {
 
         // Draw user's rank with bold font
         ctx.fillStyle = '#ffd700'; // Gold color for the rank
-        ctx.font = 'bold 35px Sans-serif';
+        ctx.font = 'bold 35px myCustomFont';
         ctx.fillText(`#${i + 1}`, rankX, yPos + avatarSize / 2 + 15);
 
         // Draw user's avatar (loading it from the avatar URL)
-        const avatar = await Canvas.loadImage(user.avatarURL);
+        const avatar = await loadImage(user.avatarURL);
         ctx.save(); // Save current context state
         ctx.beginPath();
         ctx.arc(avatarX + avatarSize / 2, yPos + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2); // Circular avatar
@@ -62,7 +63,7 @@ async function generateBalancedLeaderboardImage(users) {
 
         // Measure the width of the username to center it
         ctx.fillStyle = '#ffffff';
-        ctx.font = '30px Sans-serif';
+        ctx.font = '30px myCustomFont';
         const nameWidth = ctx.measureText(user.username).width;
         const nameXPosition = nameXCenter - nameWidth / 2; // Center the name
 
@@ -79,7 +80,7 @@ async function generateBalancedLeaderboardImage(users) {
 
         // Draw user's points with a brighter color for contrast
         ctx.fillStyle = '#00ff99'; // Neon green for points
-        ctx.font = 'bold 30px Sans-serif';
+        ctx.font = 'bold 30px myCustomFont';
         ctx.fillText(`${user.points} P`, pointsX, yPos + avatarSize / 2 + 15);
     }
 
@@ -91,7 +92,7 @@ async function generateBalancedLeaderboardImage(users) {
     
 
     // Load and draw the bot logo at the bottom center
-    const botLogo = await Canvas.loadImage(botLogoPath);
+    const botLogo = await loadImage(botLogoPath);
     const logoWidth = 80;
     const logoHeight = 80;
     const logoX = width / 2 - logoWidth / 2; // Center the logo horizontally
