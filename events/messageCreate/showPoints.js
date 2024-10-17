@@ -117,19 +117,8 @@ async function handleTopPlayers(message) {
             const displayName = user.displayName;
             return { ...player, avatarURL:imageUrl, username:displayName };
         }));   
-        const topImage = await generateBalancedLeaderboardImage(playersData);
-        // const topThreeEmbed = new EmbedBuilder()
-        //     .setColor('#FFD700')
-        //     .setTitle('أفضل 10 لاعبين :')
-        //     .setDescription('أفضل 10 لاعبين حتى الان')
-        //     .addFields(
-        //         topPlayers.map((player, index) => ({
-        //             name: `${index + 1} المركز ال`,
-        //             value: `<@${player.discord_id}> النقاط: ${player.points}  💎`,
-        //         }))
-        //     )
-        //     .setTimestamp()
-        //     .setFooter({ text: 'Wansa' });
+        const topImage = await generateBalancedLeaderboardImage(playersData);// update here
+        
 
         await message.channel.send({
             files: [topImage]
