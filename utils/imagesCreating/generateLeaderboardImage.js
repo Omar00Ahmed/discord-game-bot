@@ -83,7 +83,7 @@ async function generateBalancedLeaderboardImage(users) {
         ctx.fillText(`${user.points} P`, pointsX, yPos + avatarSize / 2 + 15);
     }
 
-
+    console.log(users)
 
     // Get the bot logo from the public folder
     const path = require('path');
@@ -112,26 +112,7 @@ async function generateBalancedLeaderboardImage(users) {
     return attachment;
 }
 
-// Example Usage
-(async () => {
-    // Example user data, this would be dynamically generated or fetched
-    const users = [
-        { username: 'Player1', points: 1500, avatarURL: 'https://picsum.photos/200/300' },
-        { username: 'Player2', points: 1300, avatarURL: 'https://picsum.photos/200/300' },
-        { username: 'Player3', points: 1200, avatarURL: 'https://picsum.photos/200/300' },
-        { username: 'Player3', points: 1200, avatarURL: 'https://picsum.photos/200/300' },
-        { username: 'Player3', points: 1200, avatarURL: 'https://picsum.photos/200/300' },
-        { username: 'Player3', points: 1200, avatarURL: 'https://picsum.photos/200/300' },
-        { username: 'Player3', points: 1200, avatarURL: 'https://picsum.photos/200/300' },
-        // Add more players as needed (up to 10)
-    ];
 
-    // Generate the leaderboard image
-    const imageBuffer = await generateBalancedLeaderboardImage(users);
 
-    // Save the image to a file (for testing purposes)
-    const fs = require('fs');
-    fs.writeFileSync('leaderboard.png', imageBuffer);
-})();
 
 module.exports = { generateBalancedLeaderboardImage };

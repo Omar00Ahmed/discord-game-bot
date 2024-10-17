@@ -11,9 +11,9 @@ async function execute(client) {
         const { topPlayers } = await getTopPlayers(3);
         const playersData = await Promise.all(topPlayers.map(async (player) => {
             const user = await client.users.fetch(player.discord_id);
-            const imageUrl = user.displayAvatarURL({ format: 'png', size: 128 });
+            const imageUrl = user.displayAvatarURL({ extension:"png", size: 128 });
             const displayName = user.displayName;
-            return { ...player, avatarURL, username:displayName };
+            return { ...player, avatarURL:imageUrl, username:displayName };
         }));        
             // const topPlayersString = topPlayers.map((player, index) => `${index + 1}. <@${player.discord_id}>: ${player.points} 💎`).join("\n");
 
@@ -23,7 +23,7 @@ async function execute(client) {
             const image = await generateBalancedLeaderboardImage(playersData);
             if (leaderboardMessage) {
                 await leaderboardMessage.edit({
-                    files: [{ attachment: image, name: "leaderboard.png" }]
+                    files: [image]
                 });
             } else {
                 const messages = await leaderboardChannel.messages.fetch({ limit: 1 });
@@ -32,11 +32,11 @@ async function execute(client) {
                 if (lastMessage && lastMessage.author.id === client.user.id) {
                     leaderboardMessage = lastMessage;
                     await leaderboardMessage.edit({
-                        files: [{ attachment: image, name: "leaderboard.png" }]
+                        files: [image]
                     });
                 } else {
                     leaderboardMessage = await leaderboardChannel.send({
-                        files: [{ attachment: image, name: "leaderboard.png" }]
+                        files: [image]
                     });
                 }
             }
@@ -47,7 +47,7 @@ async function execute(client) {
     updateLeaderboard();
 
     // Update every 3 minutes
-    setInterval(updateLeaderboard, 2 * 60 * 1000);
+    setInterval(updateLeaderboard, 30 * 1000);
 
 }
 

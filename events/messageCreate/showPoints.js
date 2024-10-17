@@ -1,5 +1,6 @@
 const { Message, EmbedBuilder, PermissionsBitField } = require("discord.js");
 const { prefix } = require("../../utils/MessagePrefix");
+const {generateBalancedLeaderboardImage} = require("../../utils/imagesCreating/generateLeaderboardImage")
 const {
     getPlayerPoints,
     resetAllPlayersPoints,
@@ -110,20 +111,29 @@ async function handleResetPoints(message) {
 async function handleTopPlayers(message) {
     
         const { topPlayers } = await getTopPlayers(10);
-        const topThreeEmbed = new EmbedBuilder()
-            .setColor('#FFD700')
-            .setTitle('أفضل 10 لاعبين :')
-            .setDescription('أفضل 10 لاعبين حتى الان')
-            .addFields(
-                topPlayers.map((player, index) => ({
-                    name: `${index + 1} المركز ال`,
-                    value: `<@${player.discord_id}> النقاط: ${player.points}  💎`,
-                }))
-            )
-            .setTimestamp()
-            .setFooter({ text: 'Wansa' });
+        const playersData = await Promise.all(topPlayers.map(async (player) => {
+            const user = await client.users.fetch(player.discord_id);
+            const imageUrl = user.displayAvatarURL({ extension:"png", size: 128 });
+            const displayName = user.displayName;
+            return { ...player, avatarURL:imageUrl, username:displayName };
+        }));   
+        const topImage = await generateBalancedLeaderboardImage(playersData);
+        // const topThreeEmbed = new EmbedBuilder()
+        //     .setColor('#FFD700')
+        //     .setTitle('أفضل 10 لاعبين :')
+        //     .setDescription('أفضل 10 لاعبين حتى الان')
+        //     .addFields(
+        //         topPlayers.map((player, index) => ({
+        //             name: `${index + 1} المركز ال`,
+        //             value: `<@${player.discord_id}> النقاط: ${player.points}  💎`,
+        //         }))
+        //     )
+        //     .setTimestamp()
+        //     .setFooter({ text: 'Wansa' });
 
-        await message.channel.send({ embeds: [topThreeEmbed] });
+        await message.channel.send({
+            files: [topImage]
+        });
     
 }
 
