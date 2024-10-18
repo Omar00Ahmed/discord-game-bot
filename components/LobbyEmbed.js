@@ -90,7 +90,11 @@ const updateLobby = (lobby, userId, action) => {
 };
 
 const checkGameStart = (lobby) => {
+<<<<<<< HEAD
     if (lobby.countdownStartTime) {
+=======
+    if (lobby?.countdownStartTime) {
+>>>>>>> af44fc6 (updated)
         const timeElapsed = (Date.now() - lobby.countdownStartTime) / 1000;
         if (timeElapsed >= 5) {
             return true;
