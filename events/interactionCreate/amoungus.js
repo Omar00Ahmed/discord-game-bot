@@ -62,6 +62,9 @@ module.exports = {
       }else if(interaction.customId.startsWith("hint")){
         const result = await game.handleHint(interaction.user.id);
         // await interaction.reply({ content: result, ephemeral: true });
+      }else if(interaction.customId.startsWith("cut_electric")){
+        const result = await game.handleElectricOff(interaction)
+        // await interaction.reply({ content: result, ephemeral: true });
       }
     } catch (error) {
       try{

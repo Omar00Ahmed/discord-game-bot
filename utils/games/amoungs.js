@@ -3,7 +3,7 @@ const {Sleep} = require("../../utils/createDelay");
 const {checkIfCanMute} = require("../../utils/WhoCanMute")
 const path = require("path")
 
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus,VoiceConnectionStatus } = require('@discordjs/voice');
+const {  createAudioResource  } = require('@discordjs/voice');
 
 const {client} = require("../../index")
 
@@ -45,6 +45,12 @@ class AmongUsGame {
       { question: "How many continents are there?", answers: ["5", "6", "7", "8"], correctAnswer: "7" },
       // Add more questions as needed
     ];
+
+    this.impostersAbilites = new Map();
+    this.gameEffects = new Map([
+      ['isElectricOff', false],
+      ['isOxygenOff', false]
+    ]);
 
   }
 
@@ -153,6 +159,12 @@ class AmongUsGame {
       const randomIndex = Math.floor(Math.random() * playerIds.length);
       const selectedId = playerIds[randomIndex];
       this.imposters.add(selectedId);
+      this.impostersAbilites.set(selectedId,
+        {
+          cutoxygen:false,
+          cutElectric:false
+        }
+      )
     }
   }
   
@@ -208,6 +220,51 @@ class AmongUsGame {
     await this.performActions();
   }
 
+   choosedPlaceComponent(place,isImposter){
+    const message = `You have chosen to go to ${place}.`
+    
+    
+    const components = [];
+
+    if (isImposter) {
+      const cutElectricButton = new ButtonBuilder()
+        .setCustomId('cut_electric')
+        .setLabel('Cut Electric')
+        .setStyle(ButtonStyle.Danger);
+
+      const cutOxygenButton = new ButtonBuilder()
+        .setCustomId('cut_oxygen')
+        .setLabel('Cut Oxygen')
+        .setStyle(ButtonStyle.Danger);
+
+      components.push(
+        new ActionRowBuilder().addComponents(cutElectricButton, cutOxygenButton)
+      );
+    }
+
+    return { content: message, components};
+
+
+  }
+
+  async handleElectricOff(i){
+    const playerId = i.user.id;
+    if(this.impostersAbilites.get(playerId).cutElectric){
+      return i.reply({
+        content: '# "لا يمكنك قطع الكهرباء مرة اخرى"',
+        ephemeral: true
+      })
+    }
+    this.impostersAbilites.get(playerId).cutElectric = true;
+    this.gameEffects.set("isElectricOff",true)
+    await i.reply({ content: '# تم تعطيل الكهرباء', ephemeral: true });
+    await i.channel.send("# تم قطع الكهرباء لن يستطيع اي احد رؤية الاخر لمدة جولة")
+    this.playAudio("sounds-electric-off")
+    
+    
+
+  }
+
 
   async choosePlaces() {
     if (this.gameState === "ended" || !this) return;
@@ -241,9 +298,10 @@ class AmongUsGame {
           votedPlayers++;
         }
         player.place = i.customId.split('_')[1];
+        
+        const {content,components} =  this.choosedPlaceComponent(player.place,this.imposters.has(i.user.id));
+        await i.reply({ content, components,ephemeral: true });
         this.playerInteractions.set(i.user.id, i);
-        await i.reply({ content: `You have chosen to go to ${player.place}.`, ephemeral: true });
-
         if (votedPlayers === alivePlayers) {
           collector.stop('allVoted');
         }
@@ -356,7 +414,10 @@ class AmongUsGame {
 
     // Wait for the action time before starting the next round
     await new Promise(resolve => setTimeout(resolve, this.actionTime));
-
+    if (this.gameEffects.get("isElectricOff")) {
+        this.gameEffects.set("isElectricOff", false)
+        await this.channel.send("# عادت الكهرباء للعمل مرة اخرى")
+    }
     if (this.gameState === 'playing') {
       this.startRound();
     }
@@ -382,6 +443,7 @@ class AmongUsGame {
 
 
   createActionButtons(place, isImposter, hasKilled = false) {
+    const isElectricOff = this.gameEffects.get('isElectricOff');
     const buttons = [];
 
     if (!isImposter) {
@@ -463,9 +525,14 @@ class AmongUsGame {
 
 
   getPlayersInLocation(place) {
+    const isElectricOff = this.gameEffects.get('isElectricOff');
+    // if (this.gameEffects.get('isElectricOff')) return "electric is off"
     const playersHere = Array.from(this.players.values())
       .filter(p => p.place === place)
       .map(p => {
+        if (isElectricOff) {
+          return p.isDead && this.deadBodies.get(p.id) === place ? '💀' : '👤';
+        }
         if (p.isDead && this.deadBodies.get(p.id) === place) {
           return `${p.name} 💀`;
         }
