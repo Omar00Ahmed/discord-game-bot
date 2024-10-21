@@ -18,9 +18,11 @@ module.exports = {
       if (interaction.customId.startsWith('place_')) {
         // Place selection is handled in the game logic
         return;
-      } else if (interaction.customId === 'task') {
+      } else if (interaction.customId.startsWith('task_')) {
+        const theArgs =interaction.customId.split('_')
+        const RoundNum = theArgs[1]
         await interaction.deferReply({ ephemeral: true });
-        const result = await game.handleTask(playerId);
+        const result = await game.handleTask(playerId,RoundNum);
         await interaction.deleteReply();
         await interaction.followUp({ content: result, ephemeral: true });
       } else if (interaction.customId === 'kill') {
@@ -29,7 +31,7 @@ module.exports = {
             .filter(p => !p.isDead && p.id !== playerId && p.place === player.place)
             .map(p => 
               new ButtonBuilder()
-                .setCustomId(`kill_${p.id}`)
+                .setCustomId(`kill_${p.id}_${game.roundNumber}`)
                 .setLabel(p.name)
                 .setStyle(ButtonStyle.Danger)
             )
@@ -48,8 +50,10 @@ module.exports = {
           });
         }
       } else if (interaction.customId.startsWith('kill_')) {
-        const targetId = interaction.customId.split('_')[1];
-        const result = await game.handleKill(playerId, targetId);
+        const theArgs =interaction.customId.split('_')
+        const targetId = theArgs[1];
+        const RoundNum = theArgs[2];
+        const result = await game.handleKill(playerId, targetId,RoundNum);
         await interaction.update({ content: result, components: [], ephemeral: true });
       } else if (interaction.customId === 'report') {
         const result = await game.handleReport(playerId);

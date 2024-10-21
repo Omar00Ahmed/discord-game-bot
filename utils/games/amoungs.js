@@ -18,6 +18,7 @@ class AmongUsGame {
     ];
     this.tasks = new Map();
     this.imposters = new Set();
+    this.isRoundInProgress = false;
     this.gameState = 'lobby';
     this.roundNumber = 0;
     this.deadBodies = new Map();
@@ -30,6 +31,7 @@ class AmongUsGame {
     // set for muted players
     this.mutedPlayers = new Set();
     this.lastHintRound = 0;
+    this.isStartingRound = false;
 
     this.connection = connection;
     this.audioPlayer = audioPlayer;
@@ -100,6 +102,7 @@ class AmongUsGame {
           if (!checkIfCanMute(member, "startGame")) return;
           if (this.players.size >= 4) {
             this.gameState = 'waiting';
+            await i.reply({ content: 'Game started!', ephemeral: true });
             collector.stop();
             this.startGame();
           } else {
@@ -146,7 +149,7 @@ class AmongUsGame {
     this.playAudio("pop-39222"); // updated
     await this.sendGameStartMessage();
     await Sleep(5000);
-    this.startRound();
+    this.startRound(false);
   }
 
   assignRoles() {
@@ -211,13 +214,31 @@ class AmongUsGame {
     return imagePath;
   }
 
-  async startRound() {
-    if (this.gameState === "ended" || !this) return;
-    this.roundNumber++;
-    this.reportedThisRound = false;
-    this.killsThisRound.clear(); // Reset kills at the start of each round
-    await this.choosePlaces();
-    await this.performActions();
+  async startRound(isPostVoting) {
+    this.gameState = 'playing';
+    if (!this || this.isStartingRound || this.gameState === "ended") {
+      console.log("returned" + `${!this} || ${this.isStartingRound} || ${this.gameState === "ended"}`);
+      return;
+    }
+    this.isStartingRound = true;
+    try {
+      if (isPostVoting) {
+        await this.channel.send("# Next round starting...");
+        await Sleep(3000); // Give players a moment to read the message
+      }
+      if (this.gameEffects.get("isElectricOff")) {
+        this.gameEffects.set("isElectricOff", false);
+        await this.channel.send("# عادت الكهرباء للعمل مرة اخرى");
+      }
+      this.roundNumber++;
+      this.reportedThisRound = false;
+      this.killsThisRound.clear();
+      await this.choosePlaces();
+      await this.performActions();
+    } finally {
+      console.log("Round started successfully");
+      this.isStartingRound = false;
+    }
   }
 
    choosedPlaceComponent(place,isImposter){
@@ -414,12 +435,21 @@ class AmongUsGame {
 
     // Wait for the action time before starting the next round
     await new Promise(resolve => setTimeout(resolve, this.actionTime));
-    if (this.gameEffects.get("isElectricOff")) {
-        this.gameEffects.set("isElectricOff", false)
-        await this.channel.send("# عادت الكهرباء للعمل مرة اخرى")
-    }
-    if (this.gameState === 'playing') {
-      this.startRound();
+    console.log(this.gameState);
+    if (this.gameState === 'playing' || this.gameState === 'playingIm' ) {
+      console.log("done !");
+      if (this.reportedThisRound) {
+        this.isRoundInProgress = true;
+        this.gameState = "playingIm";
+      } else {
+        this.isRoundInProgress = false;
+        this.isStartingRound = false;
+        this.gameState = "playing";
+      }
+      this.startRound(false);
+      if (this.reportedThisRound) {
+        this.reportedThisRound = false;
+      }
     }
   }
 
@@ -449,7 +479,7 @@ class AmongUsGame {
     if (!isImposter) {
       buttons.push(
         new ButtonBuilder()
-          .setCustomId('task')
+          .setCustomId(`task_${this.roundNumber}`)
           .setLabel('Do Task')
           .setStyle(ButtonStyle.Success)
       );
@@ -504,9 +534,8 @@ class AmongUsGame {
 
     this.reportedThisRound = true;
     this.gameState = 'voting';
+    
 
-    this.reportedThisRound = true;
-    this.gameState = 'voting';
 
     const interaction = this.playerInteractions.get(reporterId);
     if (interaction) {
@@ -549,9 +578,9 @@ class AmongUsGame {
       .join('\n');
   }
 
-  async handleTask(playerId) {
+  async handleTask(playerId,roundNum) {
     const player = this.players.get(playerId);
-    if (!player || player.isDead || this.imposters.has(player.id) || this.reportedThisRound) {
+    if (!player || player.isDead || this.imposters.has(player.id) || this.reportedThisRound || parseInt(roundNum) != this.roundNumber) {
       return "You can't do tasks!";
     }
 
@@ -568,7 +597,9 @@ class AmongUsGame {
     const result = await this.askTaskQuestion(playerId, taskQuestion);
 
     if (result) {
-      this.tasks.set(player.place, tasksRemaining - 1);
+      if (this.tasks.get(player.place) > 0) {
+        this.tasks.set(player.place, this.tasks.get(player.place) - 1);
+      }
       this.completedTasks.add(playerId);
       
       if (this.checkCrewmateWin()) {
@@ -653,7 +684,7 @@ class AmongUsGame {
   }
 
 
-  async handleKill(killerId, targetId) {
+  async handleKill(killerId, targetId,roundNum) {
     if (!this.imposters.has(killerId)) return "You are not an imposter!";
 
     const killer = this.players.get(killerId);
@@ -663,7 +694,7 @@ class AmongUsGame {
       return "You can't kill an imposter!";
     }
 
-    if (!killer || !target || killer.isDead || target.isDead || killer.place !== target.place) {
+    if (!killer || !target || killer.isDead || target.isDead || killer.place !== target.place || parseInt(roundNum) != this.roundNumber) {
       return "Invalid kill attempt!";
     }
 
@@ -771,6 +802,7 @@ class AmongUsGame {
 
     this.reportedThisRound = true;
     this.gameState = 'voting';
+    
 
     // Announce the report to the channel
     const deadPlayer = this.players.get(reportedBody[0]);
@@ -797,7 +829,7 @@ class AmongUsGame {
     const message = await this.channel.send({ embeds: [embed], components: voteButtons });
 
     const filter = i => this.players.has(i.user.id) && !this.players.get(i.user.id).isDead;
-    const collector = message.createMessageComponentCollector({ filter, time: this.votingTime });
+    const collector = message.createMessageComponentCollector({ filter,time:this.votingTime });
 
     let votedPlayers = 0;
     const alivePlayers = Array.from(this.players.values()).filter(p => !p.isDead).length;
@@ -805,7 +837,6 @@ class AmongUsGame {
     collector.on('collect', async i => {
       const voterId = i.user.id;
       const votedId = i.customId.split('_')[1];
-      
       
       const voter = this.players.get(voterId);
       if (!voter || voter.isDead) {
@@ -818,8 +849,7 @@ class AmongUsGame {
       }
       
       this.votes.set(voterId, votedId);
-      console.log(this?.players?.get(votedId));
-      await i.reply({ content: `You have voted for ${this?.players?.get(votedId)?.name || this.votes.get(votedId)}.`, ephemeral: true });
+      await i.reply({ content: `You have voted for ${this?.players?.get(votedId)?.name || 'Skip'}.`, ephemeral: true });
       
       // Update vote counts
       await this.updateVoteCounts(message);
@@ -829,8 +859,20 @@ class AmongUsGame {
       }
     });
 
-    collector.on('end', collected => {
-      this.resolveVotes(message);
+    collector.on('end', async (collected, reason) => {
+      console.log("done here bro");
+      if (reason === 'time') {
+        await message.edit({ content: "Voting has timed out! No votes were recorded." });
+        await this.resolveVotes(message);
+      }else{
+        await this.resolveVotes(message);
+      }
+
+      // // Check game state and start next round if necessary
+      // if (this.gameState === 'playing' || this.gameState === 'playingIm') {
+        
+      //   this.startRound(true);
+      // }
     });
   }
 
@@ -910,7 +952,7 @@ class AmongUsGame {
         ejectedId = id;
       }
     });
-
+    this.isRoundInProgress = false;
     if (ejectedId && ejectedId !== 'skip') {
       const ejectedPlayer = this.players.get(ejectedId);
       ejectedPlayer.isDead = true;
@@ -939,13 +981,16 @@ class AmongUsGame {
       } 
       else {
         console.log("from here condition")
-        this.gameState = 'playing';
-        this.startRound();
+        // this.isStartingRound = false;
+        this.startRound(true);
+        // this.startRound();
       }
     } else {
+      console.log("SAME CASE");
       await this.channel.send('# No one was ejected.');
-      this.gameState = 'playing';
-      this.startRound();
+      // this.isStartingRound = false;
+      this.startRound(true);
+      
     }
 
     // Remove reported bodies after vote
@@ -953,6 +998,7 @@ class AmongUsGame {
     this.votes.clear();
     await message.edit({ components: [] }); // Disable voting buttons
   }
+  
 
   checkAllTasksCompleted() {
     return Array.from(this.players.values())
