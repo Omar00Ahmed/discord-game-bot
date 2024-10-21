@@ -113,8 +113,6 @@ module.exports = {
               }
             }
 
-            // Keep all buttons the same style
-            await interaction.deferUpdate();
 
           });
 
