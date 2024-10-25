@@ -84,7 +84,6 @@ async function generateBalancedLeaderboardImage(users) {
         ctx.fillText(`${user.points} P`, pointsX, yPos + avatarSize / 2 + 15);
     }
 
-    console.log(users)
 
     // Get the bot logo from the public folder
     const path = require('path');

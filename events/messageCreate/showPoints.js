@@ -110,20 +110,21 @@ async function handleResetPoints(message) {
 
 async function handleTopPlayers(message, client) {
     
-        // const { topPlayers } = await getTopPlayers(10);
-        // const playersData = await Promise.all(topPlayers.map(async (player) => {
-        //     const user = await client.users.fetch(player.discord_id);
-        //     const imageUrl = user.displayAvatarURL({ extension:"png", size: 128 });
-        //     const displayName = user.username;
-        //     return { ...player, avatarURL:imageUrl, username:displayName };
-        // }));   
-        // const topImage = await generateBalancedLeaderboardImage(playersData);// update here
-        
+        const { topPlayers } = await getTopPlayers(10);
+        const topThreeEmbed = new EmbedBuilder()
+            .setColor('#FFD700')
+            .setTitle('أفضل 10 لاعبين :')
+            .setDescription('أفضل 10 لاعبين حتى الان')
+            .addFields(
+                topPlayers.map((player, index) => ({
+                    name: `${index + 1} المركز ال`,
+                    value: `<@${player.discord_id}> النقاط: ${player.points}  💎`,
+                }))
+            )
+            .setTimestamp()
+            .setFooter({ text: 'Wnsa' });
 
-        // await message.channel.send({
-        //     files: [topImage]
-        // });
-        await message.reply(`تم نقل النقاط اللي <#1296359748362567680>`);
+        await message.channel.send({ embeds: [topThreeEmbed] });
     
 }
 
