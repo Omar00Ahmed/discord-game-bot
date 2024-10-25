@@ -69,6 +69,9 @@ module.exports = {
       }else if(interaction.customId.startsWith("cut_electric")){
         const result = await game.handleElectricOff(interaction)
         // await interaction.reply({ content: result, ephemeral: true });
+      }else if(interaction.customId.startsWith("cut_oxygen")){
+        const reult = await game.handleCutOxygen(interaction.user.id);
+
       }
     } catch (error) {
       try{

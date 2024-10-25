@@ -3,7 +3,7 @@ const { prefix } = require("../../utils/MessagePrefix");
 const { addPlayerPoints, getPlayerPoints } = require("../../db/playersScore");
 const { createCanvas } = require("canvas");
 const {createPatternImage,getRandomPattern} = require("../../utils/patternGameHelpers")
-const GAME_DURATION = 60000; // 60 seconds in milliseconds
+const GAME_DURATION = 20000; // 20 seconds in milliseconds
 const MIN_DIFFICULTY = 4;
 const MAX_DIFFICULTY = 7;
 const DEFAULT_DIFFICULTY = 5;
@@ -76,10 +76,23 @@ module.exports = {
             new ActionRowBuilder().addComponents(buttons.slice(6, 9))
           ];
 
+          let remainingTime = GAME_DURATION / 1000;
           const gameMessage = await message.channel.send({
-            content: 'الآن قم بتكرار النمط الذي رأيته! اضغط على الأزرار بالترتيب الصحيح.',
+            content: `الآن قم بتكرار النمط الذي رأيته! اضغط على الأزرار بالترتيب الصحيح.\nالوقت المتبقي: ${remainingTime} ثانية`,
             components: rows
           });
+
+          const timer = setInterval(() => {
+            remainingTime--;
+            if (remainingTime > 0 && !gameEnded) {
+              gameMessage.edit({
+                content: `الآن قم بتكرار النمط الذي رأيته! اضغط على الأزرار بالترتيب الصحيح.\nالوقت المتبقي: ${remainingTime} ثانية`,
+                components: rows
+              });
+            } else {
+              clearInterval(timer);
+            }
+          }, 1000);
 
           const collector = gameMessage.createMessageComponentCollector({
             filter: i => !i.user.bot,
@@ -113,8 +126,6 @@ module.exports = {
               }
             }
 
-            // Keep all buttons the same style
-            await interaction.deferUpdate();
 
           });
 

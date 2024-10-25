@@ -51,9 +51,14 @@ class AmongUsGame {
     this.impostersAbilites = new Map();
     this.gameEffects = new Map([
       ['isElectricOff', false],
-      ['isOxygenOff', false]
+      ['isOxygenOff', false],
+      ['oxygenCutNextRound', false]  
     ]);
 
+    this.oxygenTasksRequired = 0;  // Will be set when oxygen is cut
+    this.oxygenTasksCompleted = 0;  // Counter for completed oxygen tasks
+    this.oxygenTaskCompletionThreshold = 0.6;  // 60% of players need to complete the task
+    this.oxygenCutUsed = new Set(); // Track which imposters have used the oxygen cut
   }
 
   async playAudio(audioName){
@@ -222,14 +227,53 @@ class AmongUsGame {
     }
     this.isStartingRound = true;
     try {
+      
       if (isPostVoting) {
         await this.channel.send("# Next round starting...");
         await Sleep(3000); // Give players a moment to read the message
       }
+
       if (this.gameEffects.get("isElectricOff")) {
         this.gameEffects.set("isElectricOff", false);
         await this.channel.send("# عادت الكهرباء للعمل مرة اخرى");
       }
+
+      if (this.gameEffects.get('isOxygenOff')) {
+        if (this.oxygenTasksCompleted < this.oxygenTasksRequired) {
+          const randomPlayer = this.getRandomAliveCrewmate();
+          if (randomPlayer) {
+            randomPlayer.isDead = true;
+            this.deadPlayers.add(randomPlayer.id);
+            await this.channel.send({
+              content:`# Oxygen depletion has claimed a victim! <@${randomPlayer.id}> has died!`,
+              files: [{ attachment: this.getImagePath("breath-die.gif"), name: "death.gif" }]
+            });
+            // Remove the player's ability to send messages in the channel
+            await this.channel.permissionOverwrites.edit(randomPlayer.id, { SendMessages: false });
+            this.mutedPlayers.add(randomPlayer.id);
+            this.playAudio("sounds-kill")
+            if (this.checkImposterWin()) {
+              this.endGame('imposter');
+              return;
+            }
+          }
+        }
+        this.gameEffects.set('isOxygenOff', false);
+        this.oxygenTasksCompleted = 0;
+        this.oxygenTasksRequired = 0;
+      }
+
+      if (this.gameEffects.get('oxygenCutNextRound')) {
+        this.gameEffects.set('isOxygenOff', true);
+        this.gameEffects.set('oxygenCutNextRound', false);
+        const alivePlayers = this.getAlivePlayersCount();
+        this.oxygenTasksRequired = Math.ceil(alivePlayers * this.oxygenTaskCompletionThreshold);
+        this.oxygenTasksCompleted = 0;
+        await this.channel.send(`# ⚠️ Oxygen levels are critically low! At least ${this.oxygenTasksRequired} players must go to the stairs to restore oxygen!`);
+        this.playAudio("sounds-emergency")
+      }
+  
+      
       this.roundNumber++;
       this.reportedThisRound = false;
       this.killsThisRound.clear();
@@ -241,26 +285,28 @@ class AmongUsGame {
     }
   }
 
-   choosedPlaceComponent(place,isImposter){
+  getAlivePlayersCount() {
+    return Array.from(this.players.values()).filter(p => !p.isDead).length;
+  }
+
+   choosedPlaceComponent(place,isImposter,userId){
     const message = `You have chosen to go to ${place}.`
     
     
     const components = [];
 
     if (isImposter) {
-      const cutElectricButton = new ButtonBuilder()
-        .setCustomId('cut_electric')
-        .setLabel('Cut Electric')
-        .setStyle(ButtonStyle.Danger);
+      const imposterAbilities = this.impostersAbilites.get(userId);
+      if (!imposterAbilities?.cutElectric) {
+        const cutElectricButton = new ButtonBuilder()
+          .setCustomId('cut_electric')
+          .setLabel('Cut Electric')
+          .setStyle(ButtonStyle.Danger);
 
-      const cutOxygenButton = new ButtonBuilder()
-        .setCustomId('cut_oxygen')
-        .setLabel('Cut Oxygen')
-        .setStyle(ButtonStyle.Danger);
-
-      components.push(
-        new ActionRowBuilder().addComponents(cutElectricButton, cutOxygenButton)
-      );
+        components.push(
+          new ActionRowBuilder().addComponents(cutElectricButton)
+        );
+      }
     }
 
     return { content: message, components};
@@ -284,6 +330,35 @@ class AmongUsGame {
     
     
 
+  }
+
+  getRandomAliveCrewmate() {
+    const aliveCrewmates = Array.from(this.players.values()).filter(p => !p.isDead && !this.imposters.has(p.id));
+    return aliveCrewmates[Math.floor(Math.random() * aliveCrewmates.length)];
+  }
+
+  async handleCutOxygen(imposterPlayerId) {
+
+    
+
+    if (this.gameEffects.get('isOxygenOff') || this.gameEffects.get('oxygenCutNextRound')) {
+      return "Oxygen cut is already scheduled or active!";
+    }
+    
+    if (!this.imposters.has(imposterPlayerId)) {
+      return "Only imposters can cut oxygen!";
+    }
+    
+    if (this.oxygenCutUsed.has(imposterPlayerId)) {
+      return "You have already used your oxygen cut ability this game!";
+    }
+
+    this.gameEffects.set('oxygenCutNextRound', true);
+    this.oxygenCutUsed.add(imposterPlayerId);
+    await this.channel.send("# ⚠️ Warning: Oxygen systems will malfunction in the next round!");
+    this.playAudio("sounds-oxygen-warning");
+
+    return "Oxygen cut scheduled for the next round!";
   }
 
 
@@ -320,7 +395,7 @@ class AmongUsGame {
         }
         player.place = i.customId.split('_')[1];
         
-        const {content,components} =  this.choosedPlaceComponent(player.place,this.imposters.has(i.user.id));
+        const {content,components} =  this.choosedPlaceComponent(player.place,this.imposters.has(i.user.id),i.user.id);
         await i.reply({ content, components,ephemeral: true });
         this.playerInteractions.set(i.user.id, i);
         if (votedPlayers === alivePlayers) {
@@ -347,37 +422,22 @@ class AmongUsGame {
     });
   }
 
-  createTaskButtons() {
-    const taskButtons = [];
-    let currentRow = new ActionRowBuilder();
-
-    this.places.forEach((place, index) => {
-      const tasksRemaining = this.tasks.get(place);
-      const button = new ButtonBuilder()
-        .setCustomId(`task_status_${place}`)
-        .setLabel(`${place}: ${tasksRemaining}`)
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(true);
-
-      currentRow.addComponents(button);
-
-      if ((index + 1) % 5 === 0 || index === this.places.length - 1) {
-        taskButtons.push(currentRow);
-        currentRow = new ActionRowBuilder();
-      }
-    });
-
-    return taskButtons;
-  }
 
 
   createPlaceButtons() {
-    const buttons = this.places.map(place => 
-      new ButtonBuilder()
+    const buttons = this.places.map(place => {
+      const button = new ButtonBuilder()
         .setCustomId(`place_${place}`)
         .setLabel(`${place} (${this.tasks.get(place)} tasks)`)
-        .setStyle(ButtonStyle.Primary)
-    );
+        .setStyle(ButtonStyle.Primary);
+
+      if (place === 'stairs' && this.gameEffects.get('isOxygenOff')) {
+        button.setStyle(ButtonStyle.Danger)
+          .setLabel(`stairs ,Oxygen Task! (${this.getAlivePlayersCount()})`);
+      }
+
+      return button;
+    });
 
     const rows = [];
     for (let i = 0; i < buttons.length; i += 5) {
@@ -400,7 +460,7 @@ class AmongUsGame {
 
       const isImposter = this.imposters.has(playerId);
       const hasKilled = this.killsThisRound.has(playerId);
-      const actionButtons = this.createActionButtons(playerData.place, isImposter, hasKilled);
+      const actionButtons = this.createActionButtons(playerId, playerData.place, isImposter, hasKilled);
 
       const embed = new EmbedBuilder()
         .setTitle(`Round ${this.roundNumber} - Your Turn`)
@@ -428,16 +488,15 @@ class AmongUsGame {
     }
 
     // Wait for all action messages to be sent
-    const sentMessages = await Promise.all(actionPromises);
+    await Promise.all(actionPromises);
 
     // Set a timeout to disable buttons after the action time
-    setTimeout(() => this.disableActionButtons(sentMessages), this.actionTime);
+    setTimeout(() => this.disableActionButtons(), this.actionTime);
 
     // Wait for the action time before starting the next round
     await new Promise(resolve => setTimeout(resolve, this.actionTime));
-    console.log(this.gameState);
-    if (this.gameState === 'playing' || this.gameState === 'playingIm' ) {
-      console.log("done !");
+
+    if (this.gameState === 'playing' || this.gameState === 'playingIm') {
       if (this.reportedThisRound) {
         this.isRoundInProgress = true;
         this.gameState = "playingIm";
@@ -454,25 +513,30 @@ class AmongUsGame {
   }
 
 
-  async disableActionButtons(messages) {
-    for (const message of messages) {
-      const disabledComponents = message.components.map(row => {
-        const disabledRow = new ActionRowBuilder();
-        row.components.forEach(component => {
-          disabledRow.addComponents(
-            ButtonBuilder.from(component).setDisabled(true)
-          );
+  async disableActionButtons() {
+    for (const [playerId, interaction] of this.playerInteractions) {
+      try {
+        const message = await interaction.fetchReply();
+        const disabledComponents = message.components.map(row => {
+          const disabledRow = new ActionRowBuilder();
+          row.components.forEach(component => {
+            disabledRow.addComponents(
+              ButtonBuilder.from(component).setDisabled(true)
+            );
+          });
+          return disabledRow;
         });
-        return disabledRow;
-      });
 
-      await message.edit({ components: disabledComponents });
+        await interaction.editReply({ components: disabledComponents });
+      } catch (error) {
+        console.error(`Error disabling buttons for player ${playerId}:`, error);
+      }
     }
   }
 
 
 
-  createActionButtons(place, isImposter, hasKilled = false) {
+  createActionButtons(playerId,place, isImposter, hasKilled = false) {
     const isElectricOff = this.gameEffects.get('isElectricOff');
     const buttons = [];
 
@@ -488,6 +552,15 @@ class AmongUsGame {
         new ButtonBuilder()
           .setCustomId('kill')
           .setLabel('Kill')
+          .setStyle(ButtonStyle.Danger)
+      );
+    }
+
+    if (isImposter && !this.gameEffects.get('isOxygenOff') && !this.gameEffects.get('oxygenCutNextRound') && !this.oxygenCutUsed.has(playerId)) {
+      buttons.push(
+        new ButtonBuilder()
+          .setCustomId('cut_oxygen')
+          .setLabel('Cut Oxygen')
           .setStyle(ButtonStyle.Danger)
       );
     }
@@ -531,6 +604,12 @@ class AmongUsGame {
     if (this.reportedThisRound) {
       return "A body has already been reported this round!";
     }
+
+
+    if (this.gameEffects.get('isOxygenOff') && this.oxygenTasksRequired > this.oxygenTasksCompleted) {
+      return "Oxygen is off! Complete oxygen tasks first!";
+    }
+
 
     this.reportedThisRound = true;
     this.gameState = 'voting';
@@ -578,12 +657,42 @@ class AmongUsGame {
       .join('\n');
   }
 
-  async handleTask(playerId,roundNum) {
+  async handleTask(playerId, roundNum) {
     const player = this.players.get(playerId);
     if (!player || player.isDead || this.imposters.has(player.id) || this.reportedThisRound || parseInt(roundNum) != this.roundNumber) {
       return "You can't do tasks!";
     }
 
+    
+
+    if (this.gameEffects.get('isOxygenOff') && player.place === 'stairs') {
+      if (this.completedTasks.has(playerId)) {
+        return "You've already completed the oxygen task this round!";
+      }
+
+      const taskQuestion = this.getRandomTaskQuestion();
+      const result = await this.askTaskQuestion(playerId, taskQuestion);
+
+      if (result) {
+        this.completedTasks.add(playerId);
+        this.oxygenTasksCompleted++;
+        
+        await this.channel.send(`restoration task! (${this.oxygenTasksCompleted}/${this.oxygenTasksRequired})`);
+
+        if (this.oxygenTasksCompleted >= this.oxygenTasksRequired) {
+          this.gameEffects.set('isOxygenOff', false);
+          await this.channel.send("# Oxygen levels have been restored!");
+          this.playAudio("sounds-oxygen-restored");
+        }
+
+        await this.updateActionButtons(playerId);
+        return "Oxygen task completed!";
+      } else {
+        return "Oxygen task failed. Try again!";
+      }
+    }
+
+    // Handle regular tasks
     const tasksRemaining = this.tasks.get(player.place);
     if (tasksRemaining <= 0) {
       return `There are no tasks left in ${player.place}!`;
@@ -798,6 +907,10 @@ class AmongUsGame {
 
     if (this.reportedThisRound) {
       return "A body has already been reported this round!";
+    }
+
+    if (this.gameEffects.get('isOxygenOff') && this.oxygenTasksRequired > this.oxygenTasksCompleted) {
+      return "Oxygen is off! Complete oxygen tasks first!";
     }
 
     this.reportedThisRound = true;
@@ -1022,7 +1135,7 @@ class AmongUsGame {
   }
   
 
-  async endGame(winner) {
+  endGame(winner) {
     this.gameState = 'ended';
 
     const embed = new EmbedBuilder()
@@ -1034,19 +1147,18 @@ class AmongUsGame {
       )
       .setColor(winner === 'imposter' ? '#ff0000' : '#00ff00');
 
-    await this.channel.send({ embeds: [embed] });
+    this.channel.send({ embeds: [embed] });
 
     this.playAudio(winner === "imposter" ? "sounds-imposter-win" : "sounds-crewmate-win");
 
-    
-    this.mutedPlayers.forEach(playerId =>{
+    this.mutedPlayers.forEach(playerId => {
       this.channel.permissionOverwrites.delete(playerId);
-    })
+    });
 
     setTimeout(() => {
       this.connection.destroy();
+      client.games.delete(this.channel.id);
     }, 10000);
-    client.games.delete(this.channel.id)
   }
 
   getImpostersList() {
