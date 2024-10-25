@@ -244,7 +244,10 @@ class AmongUsGame {
           if (randomPlayer) {
             randomPlayer.isDead = true;
             this.deadPlayers.add(randomPlayer.id);
-            await this.channel.send(`# Oxygen depletion has claimed a victim! <@${randomPlayer.id}> has died!`);
+            await this.channel.send({
+              content:`# Oxygen depletion has claimed a victim! <@${randomPlayer.id}> has died!`,
+              files: [{ attachment: this.getImagePath("breath-die.gif"), name: "death.gif" }]
+            });
             // Remove the player's ability to send messages in the channel
             await this.channel.permissionOverwrites.edit(randomPlayer.id, { SendMessages: false });
             this.mutedPlayers.add(randomPlayer.id);
@@ -602,6 +605,12 @@ class AmongUsGame {
       return "A body has already been reported this round!";
     }
 
+
+    if (this.gameEffects.get('isOxygenOff') && this.oxygenTasksRequired > this.oxygenTasksCompleted) {
+      return "Oxygen is off! Complete oxygen tasks first!";
+    }
+
+
     this.reportedThisRound = true;
     this.gameState = 'voting';
     
@@ -898,6 +907,10 @@ class AmongUsGame {
 
     if (this.reportedThisRound) {
       return "A body has already been reported this round!";
+    }
+
+    if (this.gameEffects.get('isOxygenOff') && this.oxygenTasksRequired > this.oxygenTasksCompleted) {
+      return "Oxygen is off! Complete oxygen tasks first!";
     }
 
     this.reportedThisRound = true;
