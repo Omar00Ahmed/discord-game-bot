@@ -108,6 +108,7 @@ module.exports = {
           }
 
           if (reason === 'gameStart' || reason === 'time') {
+            lobbyMessage.edit({components:[]});
             await startGame();
           }
         });
