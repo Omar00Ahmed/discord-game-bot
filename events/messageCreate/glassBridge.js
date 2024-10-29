@@ -4,7 +4,6 @@ const { addPlayerPoints } = require("../../db/playersScore");
 
 const GAME_DURATION = 300000; // 5 minutes in milliseconds
 const LOBBY_DURATION = 30000; // 30 seconds for lobby
-const ROWS_PER_MESSAGE = 5; // Number of rows per message
 const TOTAL_ROWS = 10; // Total number of rows in the game
 
 const allowedChannels = [
@@ -65,12 +64,12 @@ module.exports = {
           .setDescription('انقر على زر الانضمام للمشاركة. اللعبة ستبدأ خلال 30 ثانية.')
           .addFields({ name: 'اللاعبون', value: 'لا يوجد لاعبون حتى الآن' });
 
-        const initialMessage = await message.reply({
+        const gameMessage = await message.reply({
           embeds: [lobbyEmbed],
           components: [lobbyRow]
         });
 
-        const lobbyCollector = initialMessage.createMessageComponentCollector({
+        const lobbyCollector = gameMessage.createMessageComponentCollector({
           componentType: ComponentType.Button,
           time: LOBBY_DURATION
         });
@@ -93,73 +92,36 @@ module.exports = {
         async function updateLobbyMessage() {
           const playerList = Array.from(players).map(id => `<@${id}>`).join(', ');
           lobbyEmbed.setFields({ name: 'اللاعبون', value: playerList || 'لا يوجد لاعبون حتى الآن' })
-            .setDescription(`انقر على زر الانضمام للمشاركة. اللعبة ستبدأ خلال ${Math.ceil((LOBBY_DURATION - (Date.now() - initialMessage.createdTimestamp)) / 1000)} ثانية.`);
-          await initialMessage.edit({ embeds: [lobbyEmbed], components: [lobbyRow] });
+            .setDescription(`انقر على زر الانضمام للمشاركة. اللعبة ستبدأ خلال ${Math.ceil((LOBBY_DURATION - (Date.now() - gameMessage.createdTimestamp)) / 1000)} ثانية.`);
+          await gameMessage.edit({ embeds: [lobbyEmbed], components: [lobbyRow] });
         }
 
         lobbyCollector.on('end', async (collected, reason) => {
           if (players.size === 0) {
-            await message.channel.send('لم ينضم أي لاعب. تم إلغاء اللعبة.');
+            await gameMessage.edit({ content: 'لم ينضم أي لاعب. تم إلغاء اللعبة.', embeds: [], components: [] });
             client.gamesStarted.set("glassBridge", false);
             return;
           }
 
           if (reason === 'gameStart' || reason === 'time') {
-            await message.channel.send(`بدأت اللعبة مع ${players.size} لاعبين! استعدوا لدوركم!`);
-            await playTurn();
+            await startGame();
           }
         });
 
-        async function playTurn() {
-          if (gameEnded) return;
+        async function startGame() {
+          const gameEmbed = new EmbedBuilder()
+            .setColor('#0099ff')
+            .setTitle('لعبة جسر الزجاج')
+            .setDescription(`بدأت اللعبة مع ${players.size} لاعبين! استعدوا لدوركم!`);
 
-          const playerArray = Array.from(players);
-          const currentPlayer = playerArray[currentPlayerIndex];
-          const buttonsMessage = await createButtonsMessage();
-          
-          const filter = i => i.user.id === currentPlayer && ['left', 'right'].includes(i.customId.split('_')[0]);
-          try {
-            const response = await buttonsMessage.awaitMessageComponent({ filter, time: 30000 });
-            const [choice, rowIndex] = response.customId.split('_');
-
-            if (glassPath[currentRow] === (choice === 'left')) {
-              currentRow++;
-              await response.update({ content: `✅ <@${currentPlayer}> اجتاز بنجاح!`, components: [] });
-
-              if (currentRow === TOTAL_ROWS) {
-                await endGame('win', currentPlayer);
-              } else {
-                currentPlayerIndex = (currentPlayerIndex + 1) % playerArray.length;
-                await playTurn();
-              }
-            } else {
-              await response.update({ content: `💥 أوه لا! <@${currentPlayer}> سقط من الجسر!`, components: [] });
-              players.delete(currentPlayer);
-              if (players.size === 0) {
-                await endGame('allFailed');
-              } else {
-                currentPlayerIndex = currentPlayerIndex % players.size;
-                await playTurn();
-              }
-            }
-          } catch (error) {
-            await message.channel.send(`<@${currentPlayer}> لم يستجب في الوقت المحدد وسقط من الجسر!`);
-            players.delete(currentPlayer);
-            if (players.size === 0) {
-              await endGame('allFailed');
-            } else {
-              currentPlayerIndex = currentPlayerIndex % players.size;
-              await playTurn();
-            }
-          }
+          const components = createGameButtons();
+          await gameMessage.edit({ embeds: [gameEmbed], components });
+          await playTurn();
         }
 
-        async function createButtonsMessage() {
+        function createGameButtons() {
           const rows = [];
-          const startRow = Math.floor(currentRow / ROWS_PER_MESSAGE) * ROWS_PER_MESSAGE;
-          const endRow = Math.min(startRow + ROWS_PER_MESSAGE, TOTAL_ROWS);
-
-          for (let i = startRow; i < endRow; i++) {
+          for (let i = 0; i < TOTAL_ROWS; i++) {
             const leftButton = new ButtonBuilder()
               .setCustomId(`left_${i}`)
               .setLabel('يسار')
@@ -174,15 +136,59 @@ module.exports = {
 
             rows.push(new ActionRowBuilder().addComponents(leftButton, rightButton));
           }
+          return rows;
+        }
+
+        async function playTurn() {
+          if (gameEnded) return;
 
           const playerArray = Array.from(players);
+          const currentPlayer = playerArray[currentPlayerIndex];
+
           const gameEmbed = new EmbedBuilder()
             .setColor('#0099ff')
             .setTitle('لعبة جسر الزجاج')
-            .setDescription(`دور <@${playerArray[currentPlayerIndex]}>! اختر يسار أو يمين للخطوة ${currentRow + 1}:`)
+            .setDescription(`دور <@${currentPlayer}>! اختر يسار أو يمين للخطوة ${currentRow + 1}:`)
             .addFields({ name: 'اللاعبون المتبقون', value: playerArray.map(id => `<@${id}>`).join(', ') });
 
-          return message.channel.send({ embeds: [gameEmbed], components: rows });
+          const components = createGameButtons();
+          await gameMessage.edit({ embeds: [gameEmbed], components });
+          
+          const filter = i => i.user.id === currentPlayer && ['left', 'right'].includes(i.customId.split('_')[0]);
+          try {
+            const response = await gameMessage.awaitMessageComponent({ filter, time: 30000 });
+            const [choice, rowIndex] = response.customId.split('_');
+
+            if (glassPath[currentRow] === (choice === 'left')) {
+              currentRow++;
+              await response.update({ content: `✅ <@${currentPlayer}> اجتاز بنجاح!` });
+
+              if (currentRow === TOTAL_ROWS) {
+                await endGame('win', currentPlayer);
+              } else {
+                currentPlayerIndex = (currentPlayerIndex + 1) % playerArray.length;
+                await playTurn();
+              }
+            } else {
+              await response.update({ content: `💥 أوه لا! <@${currentPlayer}> سقط من الجسر!` });
+              players.delete(currentPlayer);
+              if (players.size === 0) {
+                await endGame('allFailed');
+              } else {
+                currentPlayerIndex = currentPlayerIndex % players.size;
+                await playTurn();
+              }
+            }
+          } catch (error) {
+            await gameMessage.edit({ content: `<@${currentPlayer}> لم يستجب في الوقت المحدد وسقط من الجسر!` });
+            players.delete(currentPlayer);
+            if (players.size === 0) {
+              await endGame('allFailed');
+            } else {
+              currentPlayerIndex = currentPlayerIndex % players.size;
+              await playTurn();
+            }
+          }
         }
 
         async function endGame(reason, winner = null) {
@@ -207,7 +213,7 @@ module.exports = {
             endEmbed.setDescription('انتهى وقت اللعبة! لم يتمكن أي لاعب من عبور الجسر بالكامل.');
           }
 
-          await message.channel.send({ embeds: [endEmbed] });
+          await gameMessage.edit({ embeds: [endEmbed], components: [] });
         }
 
         // Set a timeout for the entire game
