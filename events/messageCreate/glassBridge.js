@@ -88,6 +88,7 @@ module.exports = {
           } else if (interaction.customId === 'start' && interaction.user.id === message.author.id) {
             await interaction.reply('جاري بدء اللعبة...');
             lobbyCollector.stop('gameStart');
+            return;
           }
 
           await updateLobbyMessage();
@@ -137,19 +138,25 @@ module.exports = {
               .setStyle(i < currentRow ? (glassPath[i] ? ButtonStyle.Success : ButtonStyle.Danger) : ButtonStyle.Primary)
               .setDisabled(i !== currentRow);
 
+            const midButton = new ButtonBuilder()
+              .setCustomId(`mid_${i}`)
+              .setLabel('|')
+              .setStyle(ButtonStyle.Secondary)
+              .setDisabled(true);
+
             const rightButton = new ButtonBuilder()
               .setCustomId(`right_${i}`)
               .setLabel(' ` ')
               .setStyle(i < currentRow ? (!glassPath[i] ? ButtonStyle.Success : ButtonStyle.Danger) : ButtonStyle.Primary)
               .setDisabled(i !== currentRow);
 
-            const row = new ActionRowBuilder().addComponents(leftButton, rightButton);
+            const row = new ActionRowBuilder().addComponents(leftButton, midButton, rightButton);
             if (i < ROWS_PER_MESSAGE) {
               rows1.push(row);
             } else {
               rows2.push(row);
             }
-          }
+          }          
           return [rows1, rows2];
         }
 
