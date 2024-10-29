@@ -11,7 +11,7 @@ const allowedChannels = [
   "1292642149493510184",
   "1277694414935953564",
   "1290377082123194428",
-  "1287498380762677328"
+  "1300678838975729714"
 ];
 
 function createGlassPath(length) {
@@ -37,6 +37,7 @@ module.exports = {
 
       client.gamesStarted.set("glassBridge", true);
       const glassPath = createGlassPath(TOTAL_ROWS);
+      console.log(glassPath);
       const players = new Set();
       let currentPlayerIndex = 0;
       let currentRow = 0;
