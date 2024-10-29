@@ -273,8 +273,10 @@ module.exports = {
 
           } else if (reason === 'allFailed') {
             endEmbed.setDescription('انتهت اللعبة! جميع اللاعبين سقطوا من الجسر.');
+            if(gameMessage2) gameMessage2.delete();
           } else if (reason === 'timeout') {
             endEmbed.setDescription('انتهى وقت اللعبة! لم يتمكن أي لاعب من عبور الجسر بالكامل.');
+            if(gameMessage2) gameMessage2.delete();
           }
 
           await updateGameMessages(endEmbed);
