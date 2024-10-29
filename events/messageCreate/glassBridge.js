@@ -185,23 +185,32 @@ module.exports = {
 
             if (glassPath[currentRow] === (choice === 'left')) {
               currentRow++;
-              await gameMessage1.edit({ content: `✅ <@${currentPlayer}> اجتاز بنجاح!` });
-
-              if (currentRow === TOTAL_ROWS) {
-                await endGame('win', currentPlayer);
-              } else {
-                await playTurn(); // Continue with the same player
-              }
+                if (response.message.id === gameMessage2.id) {
+                    await response.update({ content: `\`` });
+                    await gameMessage1.edit({ content: `✅ <@${currentPlayer}> اجتاز بنجاح!` });
+                } else {
+                    await response.update({ content: `✅ <@${currentPlayer}> اجتاز بنجاح!` });
+                }
+                if (currentRow === TOTAL_ROWS) {
+                    await endGame('win', currentPlayer);
+                } else {
+                    await playTurn(); // Continue with the same player
+                }
             } else {
-              await response.update({ content: `💥 أوه لا! <@${currentPlayer}> سقط من الجسر!` });
-              players.delete(currentPlayer);
-              if (players.size === 0) {
-                await endGame('allFailed');
-              } else {
-                currentPlayerIndex = (currentPlayerIndex + 1) % players.size; // Move to the next player
-                currentRow = 0; // Reset the row for the new player
-                await playTurn();
-              }
+                if (response.message.id === gameMessage2.id) {
+                    await response.update({ content: `\`` });
+                    await gameMessage1.edit({ content: `💥 أوه لا! <@${currentPlayer}> سقط من الجسر!` });
+                } else {
+                    await response.update({ content: `💥 أوه لا! <@${currentPlayer}> سقط من الجسر!` });
+                }              
+                players.delete(currentPlayer);
+                if (players.size === 0) {
+                    await endGame('allFailed');
+                } else {
+                    currentPlayerIndex = (currentPlayerIndex + 1) % players.size; // Move to the next player
+                    currentRow = 0; // Reset the row for the new player
+                    await playTurn();
+                }
             }
           } catch (error) {
             const timeoutEmbed = new EmbedBuilder()
