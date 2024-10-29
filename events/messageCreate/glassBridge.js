@@ -91,7 +91,7 @@ module.exports = {
         });
 
         async function updateLobbyMessage() {
-          const playerList = Array.from(players).map(id => `<@${id}>`).join(', ');
+          const playerList = Array.from(players).map(id => `- <@${id}>`).join('\n');
           lobbyEmbed.setFields({ name: 'اللاعبون', value: playerList || 'لا يوجد لاعبون حتى الآن' })
             .setDescription(`انقر على زر الانضمام للمشاركة. اللعبة ستبدأ خلال ${Math.ceil((LOBBY_DURATION - (Date.now() - lobbyMessage.createdTimestamp)) / 1000)} ثانية.`);
           await lobbyMessage.edit({ embeds: [lobbyEmbed], components: [lobbyRow] });
