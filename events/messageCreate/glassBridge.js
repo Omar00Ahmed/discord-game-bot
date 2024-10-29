@@ -213,6 +213,7 @@ module.exports = {
                 }
             }
           } catch (error) {
+            console.log(error);
             const timeoutEmbed = new EmbedBuilder()
               .setColor('#ff0000')
               .setTitle('لعبة جسر الزجاج')
@@ -255,7 +256,7 @@ module.exports = {
             const row = new ActionRowBuilder().addComponents(pointsButton);
             console.log("won")
             await message.channel.send({
-                content: `🏆 <@${winner.id}> فاز بالجولة وحصل على ${pointsEarned} نقاط! (إجمالي المحاولات: ${tries})`,
+                content: `🏆 <@${winner}> فاز باللعبة وحصل على ${pointsEarned} `,
                 components: [row],
             });
 
