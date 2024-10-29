@@ -1,10 +1,11 @@
-const { Message, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
+const { Message, ButtonBuilder, ActionRowBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const { prefix } = require("../../utils/MessagePrefix");
 const { addPlayerPoints } = require("../../db/playersScore");
 
 const GAME_DURATION = 300000; // 5 minutes in milliseconds
-const ROWS_PER_MESSAGE = 5; // Number of rows per message, can be changed as needed
-const TOTAL_ROWS = 10; // Total number of rows in the game, can be changed as needed
+const LOBBY_DURATION = 30000; // 30 seconds for lobby
+const ROWS_PER_MESSAGE = 5; // Number of rows per message
+const TOTAL_ROWS = 10; // Total number of rows in the game
 
 const allowedChannels = [
   "1292642149493510184",
@@ -36,39 +37,80 @@ module.exports = {
 
       client.gamesStarted.set("glassBridge", true);
       const glassPath = createGlassPath(TOTAL_ROWS);
-      const players = [];
+      const players = new Set();
       let currentPlayerIndex = 0;
       let currentRow = 0;
       let gameEnded = false;
 
       try {
-        const initialMessage = await message.reply('# لعبة جسر الزجاج بدأت! سجل للانضمام خلال 30 ثانية.');
-        await initialMessage.react('🎮');
+        const joinButton = new ButtonBuilder()
+          .setCustomId('join')
+          .setLabel('انضم للعبة')
+          .setStyle(ButtonStyle.Primary);
 
-        const collector = initialMessage.createReactionCollector({ time: 30000 });
+        const leaveButton = new ButtonBuilder()
+          .setCustomId('leave')
+          .setLabel('غادر اللعبة')
+          .setStyle(ButtonStyle.Danger);
 
-        collector.on('collect', (reaction, user) => {
-          if (user.bot) return;
-          if (!players.includes(user.id)) {
-            players.push(user.id);
-          }
+        const startButton = new ButtonBuilder()
+          .setCustomId('start')
+          .setLabel('ابدأ اللعبة')
+          .setStyle(ButtonStyle.Success);
+
+        const lobbyRow = new ActionRowBuilder().addComponents(joinButton, leaveButton, startButton);
+
+        const initialMessage = await message.reply({
+          content: '# لعبة جسر الزجاج بدأت! انقر على زر الانضمام للمشاركة. اللعبة ستبدأ خلال 30 ثانية.',
+          components: [lobbyRow]
         });
 
-        collector.on('end', async () => {
-          if (players.length === 0) {
+        const lobbyCollector = initialMessage.createMessageComponentCollector({
+          componentType: ComponentType.Button,
+          time: LOBBY_DURATION
+        });
+
+        lobbyCollector.on('collect', async (interaction) => {
+          if (interaction.customId === 'join') {
+            players.add(interaction.user.id);
+            await interaction.reply({ content: `${interaction.user} انضم إلى اللعبة!`, ephemeral: true });
+          } else if (interaction.customId === 'leave') {
+            players.delete(interaction.user.id);
+            await interaction.reply({ content: `${interaction.user} غادر اللعبة!`, ephemeral: true });
+          } else if (interaction.customId === 'start' && interaction.user.id === message.author.id) {
+            lobbyCollector.stop('gameStart');
+            await interaction.reply('جاري بدء اللعبة...');
+          }
+
+          await updateLobbyMessage();
+        });
+
+        async function updateLobbyMessage() {
+          const playerList = Array.from(players).map(id => `<@${id}>`).join(', ');
+          await initialMessage.edit({
+            content: `# لعبة جسر الزجاج\nاللاعبون: ${playerList || 'لا يوجد لاعبون حتى الآن'}\nانقر على زر الانضمام للمشاركة. اللعبة ستبدأ خلال ${Math.ceil((LOBBY_DURATION - (Date.now() - initialMessage.createdTimestamp)) / 1000)} ثانية.`,
+            components: [lobbyRow]
+          });
+        }
+
+        lobbyCollector.on('end', async (collected, reason) => {
+          if (players.size === 0) {
             await message.channel.send('لم ينضم أي لاعب. تم إلغاء اللعبة.');
             client.gamesStarted.set("glassBridge", false);
             return;
           }
 
-          await message.channel.send(`بدأت اللعبة مع ${players.length} لاعبين! استعدوا لدوركم!`);
-          await playTurn();
+          if (reason === 'gameStart' || reason === 'time') {
+            await message.channel.send(`بدأت اللعبة مع ${players.size} لاعبين! استعدوا لدوركم!`);
+            await playTurn();
+          }
         });
 
         async function playTurn() {
           if (gameEnded) return;
 
-          const currentPlayer = players[currentPlayerIndex];
+          const playerArray = Array.from(players);
+          const currentPlayer = playerArray[currentPlayerIndex];
           const buttonsMessage = await createButtonsMessage();
           
           const filter = i => i.user.id === currentPlayer && ['left', 'right'].includes(i.customId);
@@ -78,31 +120,31 @@ module.exports = {
 
             if (glassPath[currentRow] === (choice === 0)) {
               currentRow++;
-              await message.channel.send(`✅ <@${currentPlayer}> اجتاز بنجاح!`);
+              await response.update({ content: `✅ <@${currentPlayer}> اجتاز بنجاح!`, components: [] });
 
               if (currentRow === TOTAL_ROWS) {
                 await endGame('win', currentPlayer);
               } else {
-                currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+                currentPlayerIndex = (currentPlayerIndex + 1) % playerArray.length;
                 await playTurn();
               }
             } else {
-              await message.channel.send(`💥 أوه لا! <@${currentPlayer}> سقط من الجسر!`);
-              players.splice(currentPlayerIndex, 1);
-              if (players.length === 0) {
+              await response.update({ content: `💥 أوه لا! <@${currentPlayer}> سقط من الجسر!`, components: [] });
+              players.delete(currentPlayer);
+              if (players.size === 0) {
                 await endGame('allFailed');
               } else {
-                currentPlayerIndex = currentPlayerIndex % players.length;
+                currentPlayerIndex = currentPlayerIndex % players.size;
                 await playTurn();
               }
             }
           } catch (error) {
             await message.channel.send(`<@${currentPlayer}> لم يستجب في الوقت المحدد وسقط من الجسر!`);
-            players.splice(currentPlayerIndex, 1);
-            if (players.length === 0) {
+            players.delete(currentPlayer);
+            if (players.size === 0) {
               await endGame('allFailed');
             } else {
-              currentPlayerIndex = currentPlayerIndex % players.length;
+              currentPlayerIndex = currentPlayerIndex % players.size;
               await playTurn();
             }
           }
@@ -115,13 +157,13 @@ module.exports = {
 
           for (let i = startRow; i < endRow; i++) {
             const leftButton = new ButtonBuilder()
-              .setCustomId(`left_${i}`)
+              .setCustomId(`left`)
               .setLabel('يسار')
               .setStyle(i < currentRow ? (glassPath[i] ? ButtonStyle.Success : ButtonStyle.Danger) : ButtonStyle.Primary)
               .setDisabled(i !== currentRow);
 
             const rightButton = new ButtonBuilder()
-              .setCustomId(`right_${i}`)
+              .setCustomId(`right`)
               .setLabel('يمين')
               .setStyle(i < currentRow ? (!glassPath[i] ? ButtonStyle.Success : ButtonStyle.Danger) : ButtonStyle.Primary)
               .setDisabled(i !== currentRow);
@@ -129,7 +171,8 @@ module.exports = {
             rows.push(new ActionRowBuilder().addComponents(leftButton, rightButton));
           }
 
-          const content = `دور <@${players[currentPlayerIndex]}>! اختر يسار أو يمين للخطوة ${currentRow + 1}:`;
+          const playerArray = Array.from(players);
+          const content = `دور <@${playerArray[currentPlayerIndex]}>! اختر يسار أو يمين للخطوة ${currentRow + 1}:`;
           return message.channel.send({ content, components: rows });
         }
 
