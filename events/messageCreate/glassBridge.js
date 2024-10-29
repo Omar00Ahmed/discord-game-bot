@@ -85,8 +85,8 @@ module.exports = {
             players.delete(interaction.user.id);
             await interaction.reply({ content: `${interaction.user} غادر اللعبة!`, ephemeral: true });
           } else if (interaction.customId === 'start' && interaction.user.id === message.author.id) {
-            lobbyCollector.stop('gameStart');
             await interaction.reply('جاري بدء اللعبة...');
+            lobbyCollector.stop('gameStart');
           }
 
           await updateLobbyMessage();
