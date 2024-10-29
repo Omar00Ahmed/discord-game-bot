@@ -188,7 +188,7 @@ module.exports = {
             if (glassPath[currentRow] === (choice === 'left')) {
               currentRow++;
                 if (response.message.id === gameMessage2.id) {
-                    await response.update({ content: `\`` });
+                    await response.update({ content: ` ` });
                     await gameMessage1.edit({ content: `✅ <@${currentPlayer}> اجتاز بنجاح!` });
                 } else {
                     await response.update({ content: `✅ <@${currentPlayer}> اجتاز بنجاح!` });
@@ -200,7 +200,7 @@ module.exports = {
                 }
             } else {
                 if (response.message.id === gameMessage2.id) {
-                    await response.update({ content: `\`` });
+                    await response.update({ content: ` ` });
                     await gameMessage1.edit({ content: `💥 أوه لا! <@${currentPlayer}> سقط من الجسر!` });
                 } else {
                     await response.update({ content: `💥 أوه لا! <@${currentPlayer}> سقط من الجسر!` });
@@ -258,7 +258,7 @@ module.exports = {
             const row = new ActionRowBuilder().addComponents(pointsButton);
             console.log("won")
             await message.channel.send({
-                content: `🏆 <@${winner.id}> فاز بالجولة وحصل على ${pointsEarned} نقاط! (إجمالي المحاولات: ${tries})`,
+                content: `🏆 <@${winner}> فاز باللعبة وحصل على ${pointsEarned} `,
                 components: [row],
             });
 
