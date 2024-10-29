@@ -9,7 +9,8 @@ const TOTAL_ROWS = 10; // Total number of rows in the game, can be changed as ne
 const allowedChannels = [
   "1292642149493510184",
   "1277694414935953564",
-  "1290377082123194428"
+  "1290377082123194428",
+  "1287498380762677328"
 ];
 
 function createGlassPath(length) {
