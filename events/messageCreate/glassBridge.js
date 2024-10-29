@@ -151,6 +151,18 @@ module.exports = {
           return [rows1, rows2];
         }
 
+        async function updateGameMessages(embed = null) {
+          const [components1, components2] = createGameButtons();
+          const updates = [];
+          if (embed) {
+            updates.push(gameMessage1.edit({ embeds: [embed], components: components1 }));
+          } else {
+            updates.push(gameMessage1.edit({ components: components1 }));
+          }
+          updates.push(gameMessage2.edit({ components: components2 }));
+          await Promise.all(updates);
+        }
+
         async function playTurn() {
           if (gameEnded) return;
 
@@ -163,9 +175,7 @@ module.exports = {
             .setDescription(`دور <@${currentPlayer}>! اختر يسار أو يمين للخطوة ${currentRow + 1}:`)
             .addFields({ name: 'اللاعبون المتبقون', value: playerArray.map(id => `<@${id}>`).join(', ') });
 
-          const [components1, components2] = createGameButtons();
-          await gameMessage1.edit({ embeds: [gameEmbed], components: components1 });
-          await gameMessage2.edit({ components: components2 });
+          await updateGameMessages(gameEmbed);
           
           const filter = i => i.user.id === currentPlayer && ['left', 'right'].includes(i.customId.split('_')[0]);
           try {
@@ -182,8 +192,7 @@ module.exports = {
               if (currentRow === TOTAL_ROWS) {
                 await endGame('win', currentPlayer);
               } else {
-                currentPlayerIndex = (currentPlayerIndex + 1) % playerArray.length;
-                await playTurn();
+                await playTurn(); // Continue with the same player
               }
             } else {
               await response.update({ content: `💥 أوه لا! <@${currentPlayer}> سقط من الجسر!` });
@@ -191,17 +200,23 @@ module.exports = {
               if (players.size === 0) {
                 await endGame('allFailed');
               } else {
-                currentPlayerIndex = currentPlayerIndex % players.size;
+                currentPlayerIndex = (currentPlayerIndex + 1) % players.size; // Move to the next player
+                currentRow = 0; // Reset the row for the new player
                 await playTurn();
               }
             }
           } catch (error) {
-            await gameMessage1.edit({ content: `<@${currentPlayer}> لم يستجب في الوقت المحدد وسقط من الجسر!` });
+            const timeoutEmbed = new EmbedBuilder()
+              .setColor('#ff0000')
+              .setTitle('لعبة جسر الزجاج')
+              .setDescription(`<@${currentPlayer}> لم يستجب في الوقت المحدد وسقط من الجسر!`);
+            await updateGameMessages(timeoutEmbed);
             players.delete(currentPlayer);
             if (players.size === 0) {
               await endGame('allFailed');
             } else {
-              currentPlayerIndex = currentPlayerIndex % players.size;
+              currentPlayerIndex = (currentPlayerIndex + 1) % players.size; // Move to the next player
+              currentRow = 0; // Reset the row for the new player
               await playTurn();
             }
           }
@@ -229,8 +244,7 @@ module.exports = {
             endEmbed.setDescription('انتهى وقت اللعبة! لم يتمكن أي لاعب من عبور الجسر بالكامل.');
           }
 
-          await gameMessage1.edit({ embeds: [endEmbed], components: [] });
-          await gameMessage2.edit({ components: [] });
+          await updateGameMessages(endEmbed);
         }
 
         // Set a timeout for the entire game
