@@ -11,7 +11,8 @@ const allowedChannels = [
   "1292642149493510184",
   "1277694414935953564",
   "1290377082123194428",
-  "1300678838975729714"
+  "1300678838975729714",
+  "1294731828950732924"
 ];
 
 function createGlassPath(length) {
@@ -258,7 +259,7 @@ module.exports = {
             const row = new ActionRowBuilder().addComponents(pointsButton);
             console.log("won")
             await message.channel.send({
-                content: `🏆 <@${winner}> فاز باللعبة وحصل على ${pointsEarned} `,
+                content: `🏆 <@${winner}> فاز باللعبة وحصل على ${pointsEarned} نقاط `,
                 components: [row],
             });
 
