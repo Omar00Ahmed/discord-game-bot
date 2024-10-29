@@ -80,10 +80,10 @@ module.exports = {
         lobbyCollector.on('collect', async (interaction) => {
           if (interaction.customId === 'join') {
             players.add(interaction.user.id);
-            await interaction.reply({ content: `${interaction.user} انضم إلى اللعبة!`, ephemeral: true });
+            // await interaction.reply({ content: `${interaction.user} انضم إلى اللعبة!`, ephemeral: true });
           } else if (interaction.customId === 'leave') {
             players.delete(interaction.user.id);
-            await interaction.reply({ content: `${interaction.user} غادر اللعبة!`, ephemeral: true });
+            // await interaction.reply({ content: `${interaction.user} غادر اللعبة!`, ephemeral: true });
           } else if (interaction.customId === 'start' && interaction.user.id === message.author.id) {
             await interaction.reply('جاري بدء اللعبة...');
             lobbyCollector.stop('gameStart');
@@ -131,13 +131,13 @@ module.exports = {
           for (let i = 0; i < TOTAL_ROWS; i++) {
             const leftButton = new ButtonBuilder()
               .setCustomId(`left_${i}`)
-              .setLabel('يسار')
+              .setLabel(' ` ')
               .setStyle(i < currentRow ? (glassPath[i] ? ButtonStyle.Success : ButtonStyle.Danger) : ButtonStyle.Primary)
               .setDisabled(i !== currentRow);
 
             const rightButton = new ButtonBuilder()
               .setCustomId(`right_${i}`)
-              .setLabel('يمين')
+              .setLabel(' ` ')
               .setStyle(i < currentRow ? (!glassPath[i] ? ButtonStyle.Success : ButtonStyle.Danger) : ButtonStyle.Primary)
               .setDisabled(i !== currentRow);
 
@@ -187,7 +187,7 @@ module.exports = {
 
             if (glassPath[currentRow] === (choice === 'left')) {
               currentRow++;
-              await response.update({ content: `✅ <@${currentPlayer}> اجتاز بنجاح!` });
+              await gameMessage1.edit({ content: `✅ <@${currentPlayer}> اجتاز بنجاح!` });
 
               if (currentRow === TOTAL_ROWS) {
                 await endGame('win', currentPlayer);
@@ -237,6 +237,20 @@ module.exports = {
 
             endEmbed.setDescription(`🏆 <@${winner}> فاز باللعبة وحصل على ${pointsEarned} نقاط!`)
               .addFields({ name: 'النقاط الجديدة', value: `${newPoints}` });
+            
+            const pointsButton = new ButtonBuilder()
+            .setCustomId('points')
+            .setLabel(`النقاط : ${newPoints}`)
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji("💎")
+            .setDisabled(true);
+
+            const row = new ActionRowBuilder().addComponents(pointsButton);
+            console.log("won")
+            await message.channel.send({
+                content: `🏆 <@${winner.id}> فاز بالجولة وحصل على ${pointsEarned} نقاط! (إجمالي المحاولات: ${tries})`,
+                components: [row],
+            });
 
           } else if (reason === 'allFailed') {
             endEmbed.setDescription('انتهت اللعبة! جميع اللاعبين سقطوا من الجسر.');
