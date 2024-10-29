@@ -40,7 +40,7 @@ class AmongUsGame {
     this.lobbyWaitTime =  3 * 60 * 1000; // 1 minute
     this.choosePlaceTime = 30000; // 30 seconds
     this.actionTime = 30000; // 30 seconds
-    this.votingTime = 60000; // 1 minute
+    this.votingTime = 120000; // 1 minute
     this.taskQuestions = [
       { question: "What is 2 + 2?", answers: ["3", "4", "5", "6"], correctAnswer: "4" },
       { question: "What color is the sky?", answers: ["Red", "Green", "Blue", "Yellow"], correctAnswer: "Blue" },
@@ -179,7 +179,7 @@ class AmongUsGame {
 
   initializeTasks() {
     this.places.forEach(place => {
-      this.tasks.set(place, 3); // 2 tasks per place
+      this.tasks.set(place, 4); // 2 tasks per place
     });
   }
 
@@ -673,7 +673,7 @@ class AmongUsGame {
       const taskQuestion = this.getRandomTaskQuestion();
       const result = await this.askTaskQuestion(playerId, taskQuestion);
 
-      if (result) {
+      if (result && !this?.players?.get(playerId)?.isDead) {
         this.completedTasks.add(playerId);
         this.oxygenTasksCompleted++;
         
@@ -705,7 +705,7 @@ class AmongUsGame {
     const taskQuestion = this.getRandomTaskQuestion();
     const result = await this.askTaskQuestion(playerId, taskQuestion);
 
-    if (result) {
+    if (result && !this?.players?.get(playerId)?.isDead) {
       if (this.tasks.get(player.place) > 0) {
         this.tasks.set(player.place, this.tasks.get(player.place) - 1);
       }
@@ -728,6 +728,7 @@ class AmongUsGame {
   }
 
   async askTaskQuestion(playerId, taskQuestion) {
+    
     const { question, answers, correctAnswer } = taskQuestion;
 
     const embed = new EmbedBuilder()
@@ -759,15 +760,19 @@ class AmongUsGame {
       console.error('Error sending task question:', error);
       return false;
     }
-
+    const player = this.players.get(playerId);
     try {
       const filter = i => i.user.id === playerId && i.customId.startsWith('answer_');
       const response = await message.awaitMessageComponent({ filter, time: 30000 });
 
       const selectedAnswer = response.customId.split('_')[1];
       const isCorrect = selectedAnswer === correctAnswer;
+      let replyOptions;
+      if(player.isDead){
+        replyOptions = { content: "you can't do tasks (dead)", components: [], ephemeral: true };
+      }
 
-      const replyOptions = {
+      replyOptions = {
         content: isCorrect ? 'Correct answer! Task Completed' : `Incorrect. The correct answer was ${correctAnswer}.`,
         components: [],
         ephemeral: true
@@ -1136,7 +1141,6 @@ class AmongUsGame {
   
 
   endGame(winner) {
-    if(this.gameState === "ended")return;
     this.gameState = 'ended';
 
     const embed = new EmbedBuilder()
