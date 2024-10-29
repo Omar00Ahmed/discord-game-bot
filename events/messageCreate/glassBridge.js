@@ -1,4 +1,4 @@
-const { Message, ButtonBuilder, ActionRowBuilder, ButtonStyle, ComponentType } = require('discord.js');
+const { Message, ButtonBuilder, ActionRowBuilder, ButtonStyle, ComponentType, EmbedBuilder } = require('discord.js');
 const { prefix } = require("../../utils/MessagePrefix");
 const { addPlayerPoints } = require("../../db/playersScore");
 
@@ -60,8 +60,14 @@ module.exports = {
 
         const lobbyRow = new ActionRowBuilder().addComponents(joinButton, leaveButton, startButton);
 
+        const lobbyEmbed = new EmbedBuilder()
+          .setColor('#0099ff')
+          .setTitle('لعبة جسر الزجاج')
+          .setDescription('انقر على زر الانضمام للمشاركة. اللعبة ستبدأ خلال 30 ثانية.')
+          .addFields({ name: 'اللاعبون', value: 'لا يوجد لاعبون حتى الآن' });
+
         const initialMessage = await message.reply({
-          content: '# لعبة جسر الزجاج بدأت! انقر على زر الانضمام للمشاركة. اللعبة ستبدأ خلال 30 ثانية.',
+          embeds: [lobbyEmbed],
           components: [lobbyRow]
         });
 
@@ -87,10 +93,9 @@ module.exports = {
 
         async function updateLobbyMessage() {
           const playerList = Array.from(players).map(id => `<@${id}>`).join(', ');
-          await initialMessage.edit({
-            content: `# لعبة جسر الزجاج\nاللاعبون: ${playerList || 'لا يوجد لاعبون حتى الآن'}\nانقر على زر الانضمام للمشاركة. اللعبة ستبدأ خلال ${Math.ceil((LOBBY_DURATION - (Date.now() - initialMessage.createdTimestamp)) / 1000)} ثانية.`,
-            components: [lobbyRow]
-          });
+          lobbyEmbed.setFields({ name: 'اللاعبون', value: playerList || 'لا يوجد لاعبون حتى الآن' })
+            .setDescription(`انقر على زر الانضمام للمشاركة. اللعبة ستبدأ خلال ${Math.ceil((LOBBY_DURATION - (Date.now() - initialMessage.createdTimestamp)) / 1000)} ثانية.`);
+          await initialMessage.edit({ embeds: [lobbyEmbed], components: [lobbyRow] });
         }
 
         lobbyCollector.on('end', async (collected, reason) => {
@@ -113,12 +118,12 @@ module.exports = {
           const currentPlayer = playerArray[currentPlayerIndex];
           const buttonsMessage = await createButtonsMessage();
           
-          const filter = i => i.user.id === currentPlayer && ['left', 'right'].includes(i.customId);
+          const filter = i => i.user.id === currentPlayer && ['left', 'right'].includes(i.customId.split('_')[0]);
           try {
             const response = await buttonsMessage.awaitMessageComponent({ filter, time: 30000 });
-            const choice = response.customId === 'left' ? 0 : 1;
+            const [choice, rowIndex] = response.customId.split('_');
 
-            if (glassPath[currentRow] === (choice === 0)) {
+            if (glassPath[currentRow] === (choice === 'left')) {
               currentRow++;
               await response.update({ content: `✅ <@${currentPlayer}> اجتاز بنجاح!`, components: [] });
 
@@ -157,13 +162,13 @@ module.exports = {
 
           for (let i = startRow; i < endRow; i++) {
             const leftButton = new ButtonBuilder()
-              .setCustomId(`left`)
+              .setCustomId(`left_${i}`)
               .setLabel('يسار')
               .setStyle(i < currentRow ? (glassPath[i] ? ButtonStyle.Success : ButtonStyle.Danger) : ButtonStyle.Primary)
               .setDisabled(i !== currentRow);
 
             const rightButton = new ButtonBuilder()
-              .setCustomId(`right`)
+              .setCustomId(`right_${i}`)
               .setLabel('يمين')
               .setStyle(i < currentRow ? (!glassPath[i] ? ButtonStyle.Success : ButtonStyle.Danger) : ButtonStyle.Primary)
               .setDisabled(i !== currentRow);
@@ -172,8 +177,13 @@ module.exports = {
           }
 
           const playerArray = Array.from(players);
-          const content = `دور <@${playerArray[currentPlayerIndex]}>! اختر يسار أو يمين للخطوة ${currentRow + 1}:`;
-          return message.channel.send({ content, components: rows });
+          const gameEmbed = new EmbedBuilder()
+            .setColor('#0099ff')
+            .setTitle('لعبة جسر الزجاج')
+            .setDescription(`دور <@${playerArray[currentPlayerIndex]}>! اختر يسار أو يمين للخطوة ${currentRow + 1}:`)
+            .addFields({ name: 'اللاعبون المتبقون', value: playerArray.map(id => `<@${id}>`).join(', ') });
+
+          return message.channel.send({ embeds: [gameEmbed], components: rows });
         }
 
         async function endGame(reason, winner = null) {
@@ -181,28 +191,24 @@ module.exports = {
           gameEnded = true;
           client.gamesStarted.set("glassBridge", false);
 
+          const endEmbed = new EmbedBuilder()
+            .setColor('#0099ff')
+            .setTitle('نهاية لعبة جسر الزجاج');
+
           if (reason === 'win') {
             const pointsEarned = 10; // You can adjust this as needed
             const newPoints = await addPlayerPoints(winner, pointsEarned);
 
-            const pointsButton = new ButtonBuilder()
-              .setCustomId('points')
-              .setLabel(`النقاط : ${newPoints}`)
-              .setStyle(ButtonStyle.Secondary)
-              .setEmoji("💎")
-              .setDisabled(true);
+            endEmbed.setDescription(`🏆 <@${winner}> فاز باللعبة وحصل على ${pointsEarned} نقاط!`)
+              .addFields({ name: 'النقاط الجديدة', value: `${newPoints}` });
 
-            const row = new ActionRowBuilder().addComponents(pointsButton);
-
-            await message.channel.send({
-              content: `🏆 <@${winner}> فاز باللعبة وحصل على ${pointsEarned} نقاط!`,
-              components: [row],
-            });
           } else if (reason === 'allFailed') {
-            await message.channel.send('انتهت اللعبة! جميع اللاعبين سقطوا من الجسر.');
+            endEmbed.setDescription('انتهت اللعبة! جميع اللاعبين سقطوا من الجسر.');
           } else if (reason === 'timeout') {
-            await message.channel.send('انتهى وقت اللعبة! لم يتمكن أي لاعب من عبور الجسر بالكامل.');
+            endEmbed.setDescription('انتهى وقت اللعبة! لم يتمكن أي لاعب من عبور الجسر بالكامل.');
           }
+
+          await message.channel.send({ embeds: [endEmbed] });
         }
 
         // Set a timeout for the entire game
