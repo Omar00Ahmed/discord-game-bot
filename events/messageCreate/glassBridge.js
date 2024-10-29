@@ -215,6 +215,7 @@ module.exports = {
                 }
             }
           } catch (error) {
+            console.log(error)
             const timeoutEmbed = new EmbedBuilder()
               .setColor('#ff0000')
               .setTitle('لعبة جسر الزجاج')
