@@ -43,6 +43,7 @@ module.exports = {
       let currentPlayerIndex = 0;
       let currentRow = 0;
       let gameEnded = false;
+      let playersAttempts = new Map();
 
       try {
         const joinButton = new ButtonBuilder()
@@ -160,9 +161,18 @@ module.exports = {
           return [rows1, rows2];
         }
 
-        async function updateGameMessages(embed = null) {
+        async function updateGameMessages(embed = null,reason) {
           const [components1, components2] = createGameButtons();
           const updates = [];
+          if(reason == "allFailed" || reason == "timeout"){
+              updates.push(
+                gameMessage2.delete()
+              )
+              updates.push(
+                gameMessage1.edit({embeds:[embed],components:[]})
+              )
+              return;
+          }
           if (embed) {
             updates.push(gameMessage1.edit({ embeds: [embed], components: components1 }));
           } else {
@@ -208,23 +218,29 @@ module.exports = {
                     await playTurn(); // Continue with the same player
                 }
             } else {
+                if(currentRow === 0)currentRow++;
+                
                 if (response.message.id === gameMessage2.id) {
                     await response.update({ content: ` ` });
                     await gameMessage1.edit({ content: `💥 أوه لا! <@${currentPlayer}> سقط من الجسر!` });
                 } else {
                     await response.update({ content: `💥 أوه لا! <@${currentPlayer}> سقط من الجسر!` });
-                }              
-                players.delete(currentPlayer);
+                }
+                
+                if(playersAttempts.get(currentPlayer) >= 1) {
+                    players.delete(currentPlayer);
+                }
+                playersAttempts.set(currentPlayer, (playersAttempts.get(currentPlayer) || 0) + 1);
+
                 if (players.size === 0) {
                     await endGame('allFailed');
                 } else {
                     currentPlayerIndex = (currentPlayerIndex + 1) % players.size; // Move to the next player
-                    currentRow = 0; // Reset the row for the new player
+                    // currentRow = 0; // Reset the row for the new player
                     await playTurn();
                 }
             }
           } catch (error) {
-            console.log(error)
             const timeoutEmbed = new EmbedBuilder()
               .setColor('#ff0000')
               .setTitle('لعبة جسر الزجاج')
@@ -244,6 +260,7 @@ module.exports = {
         async function endGame(reason, winner = null) {
           if (gameEnded) return;
           gameEnded = true;
+        
           client.gamesStarted.set("glassBridge", false);
 
           const endEmbed = new EmbedBuilder()
@@ -271,15 +288,15 @@ module.exports = {
                 components: [row],
             });
 
-          } else if (reason === 'allFailed') {
-            endEmbed.setDescription('انتهت اللعبة! جميع اللاعبين سقطوا من الجسر.');
-            if(gameMessage2) gameMessage2.delete();
-          } else if (reason === 'timeout') {
-            endEmbed.setDescription('انتهى وقت اللعبة! لم يتمكن أي لاعب من عبور الجسر بالكامل.');
-            if(gameMessage2) gameMessage2.delete();
           }
+          else if (reason === 'timeout') {
+            endEmbed.setDescription('انتهى وقت اللعبة! لم يتمكن أي لاعب من عبور الجسر بالكامل.');
+          }
+          else if (reason === 'allFailed') {
+            endEmbed.setDescription('انتهت اللعبة! جميع اللاعبين سقطوا من الجسر.');
+          } 
 
-          await updateGameMessages(endEmbed);
+          await updateGameMessages(endEmbed,reason);
         }
 
         // Set a timeout for the entire game
