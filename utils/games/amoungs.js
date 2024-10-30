@@ -1173,8 +1173,8 @@ class AmongUsGame {
       .setTitle('Game Over')
       .setDescription(`The ${winner === 'imposter' ? 'Imposter' : 'Crewmates'} win!`)
       .addFields(
-        { name: 'Imposters', value: this.getImpostersList() },
-        { name: 'Crewmates', value: this.getCrewmatesList() }
+        { name: 'Imposters', value: this.getImpostersList() || "no body" },
+        { name: 'Crewmates', value: this.getCrewmatesList() || "no body" }
       )
       .setColor(winner === 'imposter' ? '#ff0000' : '#00ff00');
 
