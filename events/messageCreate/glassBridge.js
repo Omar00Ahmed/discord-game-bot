@@ -8,11 +8,7 @@ const TOTAL_ROWS = 10; // Total number of rows in the game
 const ROWS_PER_MESSAGE = 5; // Number of rows per message (Discord limit)
 
 const allowedChannels = [
-  "1292642149493510184",
-  "1277694414935953564",
-  "1290377082123194428",
-  "1300678838975729714",
-  "1294731828950732924"
+  "1300852265258586212"
 ];
 
 function createGlassPath(length) {
@@ -31,7 +27,7 @@ module.exports = {
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    if (command === 'glass_bridge') {
+    if (command === 'الجسر') {
       if (Array.from(client?.gamesStarted.values()).some(game => game) || !allowedChannels.includes(message.channelId)) {
         return message.react("❌");
       }
@@ -39,7 +35,8 @@ module.exports = {
       client.gamesStarted.set("glassBridge", true);
       const glassPath = createGlassPath(TOTAL_ROWS);
       console.log(glassPath);
-      const players = new Set();
+      let players = new Set();
+      let playersOriginalCount;
       let currentPlayerIndex = 0;
       let currentRow = 0;
       let gameEnded = false;
@@ -56,12 +53,12 @@ module.exports = {
           .setLabel('غادر اللعبة')
           .setStyle(ButtonStyle.Danger);
 
-        const startButton = new ButtonBuilder()
-          .setCustomId('start')
-          .setLabel('ابدأ اللعبة')
-          .setStyle(ButtonStyle.Success);
+        // const startButton = new ButtonBuilder()
+        //   .setCustomId('start')
+        //   .setLabel('ابدأ اللعبة')
+        //   .setStyle(ButtonStyle.Success);
 
-        const lobbyRow = new ActionRowBuilder().addComponents(joinButton, leaveButton, startButton);
+        const lobbyRow = new ActionRowBuilder().addComponents(joinButton, leaveButton);
 
         const lobbyEmbed = new EmbedBuilder()
           .setColor('#0099ff')
@@ -82,10 +79,10 @@ module.exports = {
         lobbyCollector.on('collect', async (interaction) => {
           if (interaction.customId === 'join') {
             players.add(interaction.user.id);
-            // await interaction.reply({ content: `${interaction.user} انضم إلى اللعبة!`, ephemeral: true });
+            await interaction.update({ content: ` `});
           } else if (interaction.customId === 'leave') {
             players.delete(interaction.user.id);
-            // await interaction.reply({ content: `${interaction.user} غادر اللعبة!`, ephemeral: true });
+            await interaction.update({ content: ` `});
           } else if (interaction.customId === 'start' && interaction.user.id === message.author.id) {
             await interaction.reply('جاري بدء اللعبة...');
             lobbyCollector.stop('gameStart');
@@ -103,8 +100,8 @@ module.exports = {
         }
 
         lobbyCollector.on('end', async (collected, reason) => {
-          if (players.size === 0) {
-            await lobbyMessage.edit({ content: 'لم ينضم أي لاعب. تم إلغاء اللعبة.', embeds: [], components: [] });
+          if (players.size < 4) {
+            await lobbyMessage.edit({ content: 'عدد لاعبين غير كافي ! يجب على الاقل وجود 4 لاعبين', embeds: [], components: [] });
             client.gamesStarted.set("glassBridge", false);
             return;
           }
@@ -118,6 +115,15 @@ module.exports = {
         let gameMessage1, gameMessage2;
 
         async function startGame() {
+          playersOriginalCount = players.size;
+          // Shuffle players array
+          playersArray = Array.from(players);
+          for (let i = playersArray.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [playersArray[i], playersArray[j]] = [playersArray[j], playersArray[i]];
+          }
+          players = new Set(playersArray);
+          
           const gameEmbed = new EmbedBuilder()
             .setColor('#0099ff')
             .setTitle('لعبة جسر الزجاج')
@@ -126,61 +132,73 @@ module.exports = {
           const [components1, components2] = createGameButtons();
           gameMessage1 = await message.channel.send({ embeds: [gameEmbed], components: components1 });
           gameMessage2 = await message.channel.send({ components: components2 });
+          await gameMessage2.react("⬅️");
+          await gameMessage2.react("➡️")
           await playTurn();
         }
 
         function createGameButtons() {
-          const rows1 = [];
-          const rows2 = [];
+          const rows1 = [], rows2 = [];
+          const baseButton = {
+            label: ' ` ',
+            style: ButtonStyle.Primary
+          };
+          
           for (let i = 0; i < TOTAL_ROWS; i++) {
+            const isCurrentRow = i === currentRow;
+            const isPastRow = i < currentRow;
+            
             const leftButton = new ButtonBuilder()
               .setCustomId(`left_${i}`)
-              .setLabel(' ` ')
-              .setStyle(i < currentRow ? (glassPath[i] ? ButtonStyle.Success : ButtonStyle.Danger) : ButtonStyle.Primary)
-              .setDisabled(i !== currentRow);
-
-            const midButton = new ButtonBuilder()
-              .setCustomId(`mid_${i}`)
-              .setLabel('|')
-              .setStyle(ButtonStyle.Secondary)
-              .setDisabled(true);
-
+              .setLabel(baseButton.label)
+              .setStyle(isPastRow ? (glassPath[i] ? ButtonStyle.Success : ButtonStyle.Danger) : ButtonStyle.Primary)
+              .setDisabled(!isCurrentRow);
+        
             const rightButton = new ButtonBuilder()
               .setCustomId(`right_${i}`)
-              .setLabel(' ` ')
-              .setStyle(i < currentRow ? (!glassPath[i] ? ButtonStyle.Success : ButtonStyle.Danger) : ButtonStyle.Primary)
-              .setDisabled(i !== currentRow);
-
-            const row = new ActionRowBuilder().addComponents(leftButton, midButton, rightButton);
-            if (i < ROWS_PER_MESSAGE) {
-              rows1.push(row);
-            } else {
-              rows2.push(row);
-            }
-          }          
+              .setLabel(baseButton.label)
+              .setStyle(isPastRow ? (!glassPath[i] ? ButtonStyle.Success : ButtonStyle.Danger) : ButtonStyle.Primary)
+              .setDisabled(!isCurrentRow);
+        
+            const row = new ActionRowBuilder().addComponents(
+              leftButton,
+              new ButtonBuilder()
+                .setCustomId(`mid_${i}`)
+                .setLabel('|')
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(true),
+              rightButton
+            );
+        
+            (i < ROWS_PER_MESSAGE ? rows1 : rows2).push(row);
+          }
           return [rows1, rows2];
         }
+        
 
-        async function updateGameMessages(embed = null,reason) {
+        async function updateGameMessages(embed = null, reason, content) {
           const [components1, components2] = createGameButtons();
-          const updates = [];
-          if(reason == "allFailed" || reason == "timeout"){
-              updates.push(
-                gameMessage2.delete()
-              )
-              updates.push(
-                gameMessage1.edit({embeds:[embed],components:[]})
-              )
-              return;
+          if(reason == "allFailed" || reason == "timeout") {
+            await Promise.all([
+              gameMessage2.delete(),
+              gameMessage1.edit({embeds:[embed], components:[], content: null})
+            ]);
+            return;
           }
-          if (embed) {
-            updates.push(gameMessage1.edit({ embeds: [embed], components: components1 }));
-          } else {
-            updates.push(gameMessage1.edit({ components: components1 }));
-          }
-          updates.push(gameMessage2.edit({ components: components2 }));
-          await Promise.all(updates);
+          
+          // Combine content and embed updates into a single edit
+          const updateOptions = {
+            components: components1,
+            content: content || null,
+            embeds: embed ? [embed] : null
+          };
+          
+          await Promise.all([
+            gameMessage1.edit(updateOptions),
+            gameMessage2.edit({components: components2})
+          ]);
         }
+        
 
         async function playTurn() {
           if (gameEnded) return;
@@ -194,13 +212,13 @@ module.exports = {
             .setDescription(`دور <@${currentPlayer}>! اختر يسار أو يمين للخطوة ${currentRow + 1}:`)
             .addFields({ name: 'اللاعبون المتبقون', value: playerArray.map(id => `<@${id}>`).join(', ') });
 
-          await updateGameMessages(gameEmbed);
+          await updateGameMessages(gameEmbed,"updateContent",`دور <@${currentPlayer}>! اختر يسار أو يمين للخطوة ${currentRow + 1}:`);
           
           const filter = i => i.user.id === currentPlayer && ['left', 'right'].includes(i.customId.split('_')[0]);
           try {
             const response = await Promise.race([
-              gameMessage1.awaitMessageComponent({ filter, time: 30000 }),
-              gameMessage2.awaitMessageComponent({ filter, time: 30000 })
+              gameMessage1.awaitMessageComponent({ filter, time: 10000 }),
+              gameMessage2.awaitMessageComponent({ filter, time: 10000 })
             ]);
             const [choice, rowIndex] = response.customId.split('_');
 
@@ -227,10 +245,10 @@ module.exports = {
                     await response.update({ content: `💥 أوه لا! <@${currentPlayer}> سقط من الجسر!` });
                 }
                 
-                if(playersAttempts.get(currentPlayer) >= 1) {
+                playersAttempts.set(currentPlayer, (playersAttempts.get(currentPlayer) || 0) + 1);
+                if(playersAttempts.get(currentPlayer) >= (playersOriginalCount > 6 ? 0 : 2)) {
                     players.delete(currentPlayer);
                 }
-                playersAttempts.set(currentPlayer, (playersAttempts.get(currentPlayer) || 0) + 1);
 
                 if (players.size === 0) {
                     await endGame('allFailed');
@@ -251,7 +269,7 @@ module.exports = {
               await endGame('allFailed');
             } else {
               currentPlayerIndex = (currentPlayerIndex + 1) % players.size; // Move to the next player
-              currentRow = 0; // Reset the row for the new player
+              // currentRow = 0; // Reset the row for the new player
               await playTurn();
             }
           }
