@@ -12,10 +12,18 @@ class AmongUsGame {
     this.channel = channel;
     // this.client = theClient;
     this.players = new Map();
-    this.places = [
-      'staduim', 'cafeteria', 'gym', 'house1', 'house2',
-      'library', 'market', 'pool', 'stairs'
-    ];
+    this.places = new Map([
+      ['school', { displayName: 'المدرسة', imageFile: 'school', taskCount: 4 }],
+      ['electric', { displayName: 'محطة الكهرباء', imageFile: 'electric', taskCount: 4 }],
+      ['cafeteria', { displayName: 'الكافيتريا', imageFile: 'cafeteria', taskCount: 4 }],
+      ['hospital', { displayName: 'المستشفى', imageFile: 'hospital', taskCount: 4 }],
+      ['hall', { displayName: 'القاعة', imageFile: 'hall', taskCount: 4 }],
+      ['pool', { displayName: 'المسبح', imageFile: 'pool', taskCount: 4 }],
+      ['staduim', { displayName: 'الملعب', imageFile: 'staduim', taskCount: 4 }],
+      ['garage', { displayName: 'الجراج', imageFile: 'garage', taskCount: 4 }],
+      ['garden', { displayName: 'الحديقة', imageFile: 'garden', taskCount: 4 }]
+    ]);
+
     this.tasks = new Map();
     this.imposters = new Set();
     this.isRoundInProgress = false;
@@ -40,7 +48,7 @@ class AmongUsGame {
     this.lobbyWaitTime =  3 * 60 * 1000; // 1 minute
     this.choosePlaceTime = 30000; // 30 seconds
     this.actionTime = 30000; // 30 seconds
-    this.votingTime = 60000; // 1 minute
+    this.votingTime = 1000 * 60 * 2; // 1 minute
     this.taskQuestions = [
       { question: "What is 2 + 2?", answers: ["3", "4", "5", "6"], correctAnswer: "4" },
       { question: "What color is the sky?", answers: ["Red", "Green", "Blue", "Yellow"], correctAnswer: "Blue" },
@@ -149,12 +157,23 @@ class AmongUsGame {
 
   async startGame() {
     this.gameState = 'playing';
+    this.closeChat();
     this.assignRoles();
     this.initializeTasks();
     this.playAudio("pop-39222"); // updated
     await this.sendGameStartMessage();
     await Sleep(5000);
     this.startRound(false);
+  }
+  async closeChat(){
+    await this.channel.permissionOverwrites.edit(this.channel.guild.roles.everyone, {
+      SendMessages: false
+    });
+  }
+  async openChat(){
+    await this.channel.permissionOverwrites.edit(this.channel.guild.roles.everyone, {
+      SendMessages: true
+    });
   }
 
   assignRoles() {
@@ -178,9 +197,9 @@ class AmongUsGame {
   
 
   initializeTasks() {
-    this.places.forEach(place => {
-      this.tasks.set(place, 4); // 2 tasks per place
-    });
+    for (const [placeId, placeData] of this.places) {
+      this.tasks.set(placeId, placeData.taskCount);
+    }
   }
 
   async sendGameStartMessage() {
@@ -269,7 +288,7 @@ class AmongUsGame {
         const alivePlayers = this.getAlivePlayersCount();
         this.oxygenTasksRequired = Math.ceil(alivePlayers * this.oxygenTaskCompletionThreshold);
         this.oxygenTasksCompleted = 0;
-        await this.channel.send(`# ⚠️ Oxygen levels are critically low! At least ${this.oxygenTasksRequired} players must go to the stairs to restore oxygen!`);
+        await this.channel.send(`# ⚠️ Oxygen levels are critically low! At least ${this.oxygenTasksRequired} players must go to the hospital to restore oxygen!`);
         this.playAudio("sounds-emergency")
       }
   
@@ -290,9 +309,7 @@ class AmongUsGame {
   }
 
    choosedPlaceComponent(place,isImposter,userId){
-    const message = `You have chosen to go to ${place}.`
-    
-    
+    const message = `You have chosen to go to ${this.places.get(place).displayName}.`;    
     const components = [];
 
     if (isImposter) {
@@ -408,7 +425,8 @@ class AmongUsGame {
       // Assign random places to players who didn't choose
       for (const [playerId, playerData] of this.players) {
         if (!playerData.place && !playerData.isDead) {
-          playerData.place = this.places[Math.floor(Math.random() * this.places.length)];
+          const placesArray = Array.from(this.places.keys());
+          playerData.place = placesArray[Math.floor(Math.random() * placesArray.length)];
         }
       }
       message.edit({ components: [] }); // Disable buttons after voting ends
@@ -425,26 +443,26 @@ class AmongUsGame {
 
 
   createPlaceButtons() {
-    const buttons = this.places.map(place => {
+    const buttons = Array.from(this.places.entries()).map(([placeId, placeData]) => {
       const button = new ButtonBuilder()
-        .setCustomId(`place_${place}`)
-        .setLabel(`${place} (${this.tasks.get(place)} tasks)`)
+        .setCustomId(`place_${placeId}`)
+        .setLabel(`${placeData.displayName} (${this.tasks.get(placeId)} tasks)`)
         .setStyle(ButtonStyle.Primary);
-
-      if (place === 'stairs' && this.gameEffects.get('isOxygenOff')) {
+  
+      if (placeId === 'hospital' && this.gameEffects.get('isOxygenOff')) {
         button.setStyle(ButtonStyle.Danger)
-          .setLabel(`stairs ,Oxygen Task! (${this.getAlivePlayersCount()})`);
+          .setLabel(`${placeData.displayName}, Oxygen Task! (${this.getAlivePlayersCount()})`);
       }
-
+  
       return button;
     });
-
+  
     const rows = [];
-    for (let i = 0; i < buttons.length; i += 5) {
-      const row = new ActionRowBuilder().addComponents(buttons.slice(i, i + 5));
+    for (let i = 0; i < buttons.length; i += 3) {
+      const row = new ActionRowBuilder().addComponents(buttons.slice(i, i + 3));
       rows.push(row);
     }
-
+  
     return rows;
   }
 
@@ -464,7 +482,7 @@ class AmongUsGame {
 
       const embed = new EmbedBuilder()
         .setTitle(`Round ${this.roundNumber} - Your Turn`)
-        .setDescription(`You are in: ${playerData.place}`)
+        .setDescription(`You are in: ${this.places.get(playerData.place).displayName}`)
         .addFields(
           { name: 'Players in your location', value: this.getPlayersInLocation(playerData.place) }
         )
@@ -479,7 +497,10 @@ class AmongUsGame {
           await interaction.editReply({
             embeds: [embed],
             components: actionButtons,
-            files: [{ attachment: this.getImagePath(`places-${playerData.place}.png`), name: `places-${playerData.place}.png`}]
+            files: [{ 
+              attachment: this.getImagePath(`places-${this.places.get(playerData.place).imageFile}.png`), 
+              name: `places-${this.places.get(playerData.place).imageFile}.png`
+            }]
           });
         } catch (error) {
           console.error(`Error sending interaction response for player ${playerId}:`, error);
@@ -574,7 +595,7 @@ class AmongUsGame {
       );
     }
 
-    if (place === 'staduim') {
+    if (place === 'hall') {
       buttons.push(
         new ButtonBuilder()
           .setCustomId('report_sus')
@@ -599,7 +620,10 @@ class AmongUsGame {
 
   async handleReportSus(reporterId) {
     const reporter = this.players.get(reporterId);
-    if (!reporter || reporter.isDead || reporter.place !== 'staduim') return "You can't report from here!";
+    if (!reporter || reporter.isDead || reporter.place !== 'hall') {
+      return "You can't report from here!";
+    }
+    
 
     if (this.reportedThisRound) {
       return "A body has already been reported this round!";
@@ -653,7 +677,7 @@ class AmongUsGame {
 
   getTasksStatus() {
     return Array.from(this.tasks.entries())
-      .map(([place, count]) => `${place}: ${count}`)
+      .map(([placeId, count]) => `${this.places.get(placeId).displayName}: ${count}`)
       .join('\n');
   }
 
@@ -665,7 +689,7 @@ class AmongUsGame {
 
     
 
-    if (this.gameEffects.get('isOxygenOff') && player.place === 'stairs') {
+    if (this.gameEffects.get('isOxygenOff') && player.place === 'hospital') {
       if (this.completedTasks.has(playerId)) {
         return "You've already completed the oxygen task this round!";
       }
@@ -673,7 +697,7 @@ class AmongUsGame {
       const taskQuestion = this.getRandomTaskQuestion();
       const result = await this.askTaskQuestion(playerId, taskQuestion);
 
-      if (result) {
+      if (result && !this?.players?.get(playerId)?.isDead) {
         this.completedTasks.add(playerId);
         this.oxygenTasksCompleted++;
         
@@ -695,8 +719,9 @@ class AmongUsGame {
     // Handle regular tasks
     const tasksRemaining = this.tasks.get(player.place);
     if (tasksRemaining <= 0) {
-      return `There are no tasks left in ${player.place}!`;
+      return `There are no tasks left in ${this.places.get(player.place).displayName}!`;
     }
+
 
     if (this.completedTasks.has(playerId)) {
       return "You've already completed a task this round!";
@@ -705,7 +730,7 @@ class AmongUsGame {
     const taskQuestion = this.getRandomTaskQuestion();
     const result = await this.askTaskQuestion(playerId, taskQuestion);
 
-    if (result) {
+    if (result && !this?.players?.get(playerId)?.isDead) {
       if (this.tasks.get(player.place) > 0) {
         this.tasks.set(player.place, this.tasks.get(player.place) - 1);
       }
@@ -716,7 +741,7 @@ class AmongUsGame {
         return "Task completed! Crewmates win!";
       }
       await this.updateActionButtons(playerId);
-      return `Task completed in ${player.place}!`;
+      return `Task completed in ${this.places.get(player.place).displayName}!`;
     } else {
       return "Task failed. Try again next round!";
     }
@@ -728,6 +753,7 @@ class AmongUsGame {
   }
 
   async askTaskQuestion(playerId, taskQuestion) {
+    
     const { question, answers, correctAnswer } = taskQuestion;
 
     const embed = new EmbedBuilder()
@@ -759,15 +785,19 @@ class AmongUsGame {
       console.error('Error sending task question:', error);
       return false;
     }
-
+    const player = this.players.get(playerId);
     try {
       const filter = i => i.user.id === playerId && i.customId.startsWith('answer_');
       const response = await message.awaitMessageComponent({ filter, time: 30000 });
 
       const selectedAnswer = response.customId.split('_')[1];
       const isCorrect = selectedAnswer === correctAnswer;
+      let replyOptions;
+      if(player.isDead){
+        replyOptions = { content: "you can't do tasks (dead)", components: [], ephemeral: true };
+      }
 
-      const replyOptions = {
+      replyOptions = {
         content: isCorrect ? 'Correct answer! Task Completed' : `Incorrect. The correct answer was ${correctAnswer}.`,
         components: [],
         ephemeral: true
@@ -920,7 +950,7 @@ class AmongUsGame {
     // Announce the report to the channel
     const deadPlayer = this.players.get(reportedBody[0]);
     await this.channel.send({
-      content: `# Emergency Meeting! <@${reporter.id}> has reported <@${deadPlayer.id}>'s body in ${reporter.place}!`,
+      content: `# Emergency Meeting! <@${reporter.id}> has reported <@${deadPlayer.id}>'s body in ${this.places.get(reporter.place).displayName}!`,
       files: [{ attachment: this.getImagePath(`someone-die.gif`), name: `someone-die.gif` }]
     });
     this.playAudio("sounds-emergency");
@@ -936,7 +966,7 @@ class AmongUsGame {
       .setTitle('Emergency Meeting')
       .setDescription('A body has been reported! Vote to eject a player.')
       .setColor('#ff0000');
-
+    this.openChat();
     const voteButtons = this.createVoteButtons();
 
     const message = await this.channel.send({ embeds: [embed], components: voteButtons });
@@ -1051,6 +1081,7 @@ class AmongUsGame {
 
 
   async resolveVotes(message) {
+    this.closeChat();
     const voteCounts = new Collection();
     this.votes.forEach((votedId) => {
       voteCounts.set(votedId, (voteCounts.get(votedId) || 0) + 1);
@@ -1154,7 +1185,7 @@ class AmongUsGame {
     this.mutedPlayers.forEach(playerId => {
       this.channel.permissionOverwrites.delete(playerId);
     });
-
+    this.openChat();
     setTimeout(() => {
       this.connection.destroy();
       client.games.delete(this.channel.id);
