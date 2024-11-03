@@ -7,8 +7,8 @@ const MAX_NUMBER = 35; // Maximum number to guess
 
 const allowedChannels = [
     "1292642149493510184",
-  "1277694414935953564",
-  "1290377082123194428"
+    "1277694414935953564",
+    "1290377082123194428"
 ];
 
 function calculatePoints(tries) {

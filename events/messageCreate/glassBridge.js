@@ -4,7 +4,7 @@ const { addPlayerPoints } = require("../../db/playersScore");
 
 const GAME_DURATION = 300000; // 5 minutes in milliseconds
 const LOBBY_DURATION = 30000; // 30 seconds for lobby
-const TOTAL_ROWS = 10; // Total number of rows in the game
+const TOTAL_ROWS = 15; // Total number of rows in the game
 const ROWS_PER_MESSAGE = 5; // Number of rows per message (Discord limit)
 
 const allowedChannels = [
