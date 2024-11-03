@@ -13,15 +13,15 @@ class AmongUsGame {
     // this.client = theClient;
     this.players = new Map();
     this.places = new Map([
-      ['school', { displayName: 'المدرسة', imageFile: 'school', taskCount: 4 }],
-      ['electric', { displayName: 'محطة الكهرباء', imageFile: 'electric', taskCount: 4 }],
-      ['cafeteria', { displayName: 'الكافيتريا', imageFile: 'cafeteria', taskCount: 4 }],
-      ['hospital', { displayName: 'المستشفى', imageFile: 'hospital', taskCount: 4 }],
-      ['hall', { displayName: 'القاعة', imageFile: 'hall', taskCount: 4 }],
-      ['pool', { displayName: 'المسبح', imageFile: 'pool', taskCount: 4 }],
-      ['staduim', { displayName: 'الملعب', imageFile: 'staduim', taskCount: 4 }],
-      ['garage', { displayName: 'الجراج', imageFile: 'garage', taskCount: 4 }],
-      ['garden', { displayName: 'الحديقة', imageFile: 'garden', taskCount: 4 }]
+      ['school', { displayName: 'المدرسة', imageFile: 'school', taskCount: 3 }],
+      ['electric', { displayName: 'محطة الكهرباء', imageFile: 'electric', taskCount: 3 }],
+      ['cafeteria', { displayName: 'الكافيتريا', imageFile: 'cafeteria', taskCount: 3 }],
+      ['hospital', { displayName: 'المستشفى', imageFile: 'hospital', taskCount: 3 }],
+      ['hall', { displayName: 'القاعة', imageFile: 'hall', taskCount: 3 }],
+      ['pool', { displayName: 'المسبح', imageFile: 'pool', taskCount: 3 }],
+      ['staduim', { displayName: 'الملعب', imageFile: 'staduim', taskCount: 3 }],
+      ['garage', { displayName: 'الجراج', imageFile: 'garage', taskCount: 3 }],
+      ['garden', { displayName: 'الحديقة', imageFile: 'garden', taskCount: 3 }]
     ]);
 
     this.tasks = new Map();
@@ -106,20 +106,20 @@ class AmongUsGame {
           if (!this.players.has(i.user.id)) {
             this.players.set(i.user.id, { id: i.user.id, name: i.user.displayName, place: null, isDead: false });
             this.playerInteractions.set(i.user.id, i);
-            await i.reply({ content: 'You have joined the game!', ephemeral: true });
+            await i.reply({ content: 'لقد انضممت إلى اللعبة! 🎉🕹️', ephemeral: true });
           } else {
-            await i.reply({ content: 'You have already joined the game!', ephemeral: true });
+            await i.reply({ content: 'لقد انضممت بالفعل إلى اللعبة! 🔄🎮', ephemeral: true });
           }
         } else if (i.customId === 'start_game') {
           const member = await i.guild.members.fetch(i.user.id);
           if (!checkIfCanMute(member, "startGame")) return;
           if (this.players.size >= 4) {
             this.gameState = 'waiting';
-            await i.reply({ content: 'Game started!', ephemeral: true });
+            await i.reply({ content: 'بدأت اللعبة! 🎮✨', ephemeral: true });
             collector.stop();
             this.startGame();
           } else {
-            await i.reply({ content: 'Not enough players to start the game!', ephemeral: true });
+            await i.reply({ content: 'لا يوجد عدد كافي من اللاعبين 🫤... اللعبة أُلغيت! 🎮🚫', ephemeral: true });
           }
         }
     
@@ -131,7 +131,7 @@ class AmongUsGame {
 
     collector.on('end', collected => {
       if (this.gameState === "lobby") {
-        this.channel.send('Not enough players joined. Game cancelled.');
+        this.channel.send('لا يوجد عدد كافي من اللاعبين 🫤... اللعبة أُلغيت! 🎮🚫');
         this.connection.destroy();
         client.games.delete(this.channel.id);
         lobbyMessage.edit({ embeds: [this.createLobbyEmbed()], components: [] });
@@ -144,15 +144,15 @@ class AmongUsGame {
   createLobbyEmbed() {
     return new EmbedBuilder()
       .setTitle('Among Us Game Lobby')
-      .setDescription('Join the game! (4-10 players)')
-      .addFields({ name: 'Players', value: this.getPlayerList() })
+      .setDescription('انضم إلى اللعبة! (من 4 إلى 10 لاعبين) 🎮🚀')
+      .addFields({ name: '-: اللاعبون', value: this.getPlayerList() })
       .setColor('#00ff00');
   }
 
   getPlayerList() {
     return this.players.size > 0 
       ? Array.from(this.players.values()).map(p => `<@${p.id}>`).join('\n')
-      : 'No players yet';
+      : 'لا يوجد لاعبين حتى الآن. 🚫👥';
   }
 
   async startGame() {
@@ -205,7 +205,7 @@ class AmongUsGame {
   async sendGameStartMessage() {
     const embed = new EmbedBuilder()
       .setTitle('Among Us Game Started')
-      .setDescription('The game has begun! Check your role in your private message.')
+      .setDescription('بدأت اللعبة! تحقق من دورك في الرسالة الخاصة. 🎲📩')
       .setColor('#ff0000');
 
     await this.channel.send({ embeds: [embed] });
@@ -215,9 +215,9 @@ class AmongUsGame {
     for (const [playerId, playerData] of this.players) {
       const isImposter = this.imposters.has(playerId);
       const roleMessage = isImposter ?
-      `You are an Imposter! Sabotage and eliminate the crew. Other imposters: ${Array.from(this.imposters).filter(id => id !== playerId).map(id => `<@${id}>`).join(', ') || 'None'}`: 
-        'You are a crewmate sabotage and finish tasks' ;
-      
+      `أنت سفاح ! قم بتخريب المهام والقضاء على المواطنين. السفاحين الآخرون! 🚀🔪: ${Array.from(this.imposters).filter(id => id !== playerId).map(id => `<@${id}>`).join(', ') || ''}`: 
+        'أنت مواطن، قم بالذهاب الي المهام وإكمالها وحاول العثور علي السفاحين ! 🚀🛠️' ;
+    
       const interaction = this.playerInteractions.get(playerId);
       if (interaction) {
         const roleGif = isImposter ? 'imposter.gif' : 'crewmate.gif';
@@ -248,13 +248,13 @@ class AmongUsGame {
     try {
       
       if (isPostVoting) {
-        await this.channel.send("# Next round starting...");
+        await this.channel.send("# الجولة التالية ستبدأ الآن... 🎮🚀");
         await Sleep(3000); // Give players a moment to read the message
       }
 
       if (this.gameEffects.get("isElectricOff")) {
         this.gameEffects.set("isElectricOff", false);
-        await this.channel.send("# عادت الكهرباء للعمل مرة اخرى");
+        await this.channel.send("# عادت الكهرباء للعمل مرة أخرى! 💡✨");
       }
 
       if (this.gameEffects.get('isOxygenOff')) {
@@ -264,7 +264,7 @@ class AmongUsGame {
             randomPlayer.isDead = true;
             this.deadPlayers.add(randomPlayer.id);
             await this.channel.send({
-              content:`# Oxygen depletion has claimed a victim! <@${randomPlayer.id}> has died!`,
+              content:`# انخفاض الأكسجين أودى بحياة ضحية! <@${randomPlayer.id}> قد توفي! 💀💨`,
               files: [{ attachment: this.getImagePath("breath-die.gif"), name: "death.gif" }]
             });
             // Remove the player's ability to send messages in the channel
@@ -288,7 +288,7 @@ class AmongUsGame {
         const alivePlayers = this.getAlivePlayersCount();
         this.oxygenTasksRequired = Math.ceil(alivePlayers * this.oxygenTaskCompletionThreshold);
         this.oxygenTasksCompleted = 0;
-        await this.channel.send(`# ⚠️ Oxygen levels are critically low! At least ${this.oxygenTasksRequired} players must go to the hospital to restore oxygen!`);
+        await this.channel.send(`# مستويات الأكسجين منخفضة بشكل خطير! يجب أن يذهب ${this.oxygenTasksRequired} لاعبين على الأقل إلى المستشفى لاستعادة الأكسجين! 🚑💨`);
         this.playAudio("sounds-emergency")
       }
   
@@ -309,7 +309,7 @@ class AmongUsGame {
   }
 
    choosedPlaceComponent(place,isImposter,userId){
-    const message = `You have chosen to go to ${this.places.get(place).displayName}.`;    
+    const message = `لقد اخترت الذهاب الي : ${this.places.get(place).displayName}.`;    
     const components = [];
 
     if (isImposter) {
@@ -341,8 +341,8 @@ class AmongUsGame {
     }
     this.impostersAbilites.get(playerId).cutElectric = true;
     this.gameEffects.set("isElectricOff",true)
-    await i.reply({ content: '# تم تعطيل الكهرباء', ephemeral: true });
-    await i.channel.send("# تم قطع الكهرباء لن يستطيع اي احد رؤية الاخر لمدة جولة")
+    await i.reply({ content: '# لقد قمت بقطع الكهرباء! 🔌💡', ephemeral: true });
+    await i.channel.send("# تم قطع الكهرباء، ولن يستطيع أي أحد رؤية الآخر لمدة جولة. 🔌🚫👀")
     this.playAudio("sounds-electric-off")
     
     
@@ -369,11 +369,11 @@ class AmongUsGame {
     if (this.oxygenCutUsed.has(imposterPlayerId)) {
       return "You have already used your oxygen cut ability this game!";
     }
-
+    
     this.gameEffects.set('oxygenCutNextRound', true);
     this.oxygenCutUsed.add(imposterPlayerId);
-    await this.channel.send("# ⚠️ Warning: Oxygen systems will malfunction in the next round!");
-    this.playAudio("sounds-oxygen-warning");
+    await this.channel.send("# تحذير: ستتعطل أنظمة الأكسجين في الجولة القادمة! ⚠️💨");
+    this.playAudio("sounds-electric-off")
 
     return "Oxygen cut scheduled for the next round!";
   }
@@ -382,8 +382,8 @@ class AmongUsGame {
   async choosePlaces() {
     if (this.gameState === "ended" || !this) return;
     const embed = new EmbedBuilder()
-      .setTitle(`Round ${this.roundNumber} - Choose Your Location`)
-      .setDescription('Select a place to go to:')
+      .setTitle(`الجولة ${this.roundNumber} - اختر مكانا`)
+      .setDescription('اختر مكانا لتذهب اليه ')
       .setColor('#0099ff');
 
     const placeButtons = this.createPlaceButtons();
@@ -446,12 +446,12 @@ class AmongUsGame {
     const buttons = Array.from(this.places.entries()).map(([placeId, placeData]) => {
       const button = new ButtonBuilder()
         .setCustomId(`place_${placeId}`)
-        .setLabel(`${placeData.displayName} (${this.tasks.get(placeId)} tasks)`)
+        .setLabel(`${placeData.displayName} (${this.tasks.get(placeId)} مهمة)`)
         .setStyle(ButtonStyle.Primary);
   
       if (placeId === 'hospital' && this.gameEffects.get('isOxygenOff')) {
         button.setStyle(ButtonStyle.Danger)
-          .setLabel(`${placeData.displayName}, Oxygen Task! (${this.getAlivePlayersCount()})`);
+          .setLabel(`${placeData.displayName}, خطأ (${this.getAlivePlayersCount()})`);
       }
   
       return button;
@@ -481,10 +481,10 @@ class AmongUsGame {
       const actionButtons = this.createActionButtons(playerId, playerData.place, isImposter, hasKilled);
 
       const embed = new EmbedBuilder()
-        .setTitle(`Round ${this.roundNumber} - Your Turn`)
-        .setDescription(`You are in: ${this.places.get(playerData.place).displayName}`)
+        .setTitle(`الجولة ${this.roundNumber} - موقعك الان`)
+        .setDescription(`انت الان في: ${this.places.get(playerData.place).displayName}`)
         .addFields(
-          { name: 'Players in your location', value: this.getPlayersInLocation(playerData.place) }
+          { name: 'اللاعبون في موقعك 👥📍', value: this.getPlayersInLocation(playerData.place) }
         )
         .setColor(isImposter ? '#ff0000' : '#0099ff');
 
@@ -565,7 +565,7 @@ class AmongUsGame {
       buttons.push(
         new ButtonBuilder()
           .setCustomId(`task_${this.roundNumber}`)
-          .setLabel('Do Task')
+          .setLabel('انجز مهمة')
           .setStyle(ButtonStyle.Success)
       );
     } else if (!hasKilled) {
@@ -590,7 +590,7 @@ class AmongUsGame {
       buttons.push(
         new ButtonBuilder()
           .setCustomId('report')
-          .setLabel('Report Body')
+          .setLabel('ابلاغ عن جثة')
           .setStyle(ButtonStyle.Primary)
       );
     }
@@ -599,7 +599,7 @@ class AmongUsGame {
       buttons.push(
         new ButtonBuilder()
           .setCustomId('report_sus')
-          .setLabel('Report Suspicious Player')
+          .setLabel('اجتماع طارئ')
           .setEmoji("⚠️")
           .setStyle(ButtonStyle.Primary)
       );
@@ -609,7 +609,7 @@ class AmongUsGame {
       buttons.push(
         new ButtonBuilder()
           .setCustomId('hint')
-          .setLabel('Ask for Hint')
+          .setLabel('تلميح')
           .setStyle(ButtonStyle.Secondary)
       );
     }
@@ -620,18 +620,18 @@ class AmongUsGame {
 
   async handleReportSus(reporterId) {
     const reporter = this.players.get(reporterId);
-    if (!reporter || reporter.isDead || reporter.place !== 'hall') {
+    if (!reporter || reporter.isDead || reporter.place !== 'hall' || this.gameState =="ended") {
       return "You can't report from here!";
     }
     
 
     if (this.reportedThisRound) {
-      return "A body has already been reported this round!";
+      return "تم الإبلاغ عن جثة في هذه الجولة بالفعل! ⚠️👤";
     }
 
 
     if (this.gameEffects.get('isOxygenOff') && this.oxygenTasksRequired > this.oxygenTasksCompleted) {
-      return "Oxygen is off! Complete oxygen tasks first!";
+      return "الأوكسجين متوقف! أكملوا مهام الأوكسجين أولًا!";
     }
 
 
@@ -643,13 +643,13 @@ class AmongUsGame {
     const interaction = this.playerInteractions.get(reporterId);
     if (interaction) {
       await interaction.followUp({
-        content: 'You have called an emergency meeting!',
+        content: 'لقد دعوت إلى اجتماع طارئ! 🚨👥',
         ephemeral: true
       });
     }
     this.playAudio("sounds-emergency")
 
-    await this.channel.send(`Emergency Meeting! <@${reporter.id}> has called an emergency meeting!`);
+    await this.channel.send(`اجتماع طارئ! <@${reporter.id}> قد دعا إلى اجتماع طارئ! 🚨👥`);
     this.startVoting();  
   }
 
@@ -701,30 +701,30 @@ class AmongUsGame {
         this.completedTasks.add(playerId);
         this.oxygenTasksCompleted++;
         
-        await this.channel.send(`restoration task! (${this.oxygenTasksCompleted}/${this.oxygenTasksRequired})`);
+        await this.channel.send(`مهمة استعادة الأكسجين! (${this.oxygenTasksCompleted}/${this.oxygenTasksRequired}) 💪💨`);
 
-        if (this.oxygenTasksCompleted >= this.oxygenTasksRequired) {
+        if (this.oxygenTasksCompleted >= this.oxygenTasksRequired && this.gameEffects.get("isOxygenOff")) {
           this.gameEffects.set('isOxygenOff', false);
-          await this.channel.send("# Oxygen levels have been restored!");
+          await this.channel.send("# تم استعادة مستويات الأكسجين! 💨✨");
           this.playAudio("sounds-oxygen-restored");
         }
 
         await this.updateActionButtons(playerId);
-        return "Oxygen task completed!";
+        return "تم إتمام مهمة الأكسجين! انتظر حتى يكمل الآخرون المهمة! ✅💨";
       } else {
-        return "Oxygen task failed. Try again!";
+        return "فشلت مهمة الأكسجين. حاول مرة أخرى! ❌💨";
       }
     }
 
     // Handle regular tasks
     const tasksRemaining = this.tasks.get(player.place);
     if (tasksRemaining <= 0) {
-      return `There are no tasks left in ${this.places.get(player.place).displayName}!`;
+      return `لا توجد مهام متبقية في ${this.places.get(player.place).displayName}! 🚫🛠️`;
     }
 
 
     if (this.completedTasks.has(playerId)) {
-      return "You've already completed a task this round!";
+      return "لقد أكملت مهمة بالفعل في هذه الجولة! ✅🔄";
     }
 
     const taskQuestion = this.getRandomTaskQuestion();
@@ -738,12 +738,12 @@ class AmongUsGame {
       
       if (this.checkCrewmateWin()) {
         this.endGame('crewmate');
-        return "Task completed! Crewmates win!";
+        return "تم إتمام جميع المهمات! فازوا المواطنون! ✅🏆 ";
       }
       await this.updateActionButtons(playerId);
-      return `Task completed in ${this.places.get(player.place).displayName}!`;
+      return `تم إتمام المهمة في ${this.places.get(player.place).displayName}! ✅✨!`;
     } else {
-      return "Task failed. Try again next round!";
+      return "فشلت المهمة. حاول مرة أخرى في الجولة القادمة! ❌🔄";
     }
   }
 
@@ -757,7 +757,7 @@ class AmongUsGame {
     const { question, answers, correctAnswer } = taskQuestion;
 
     const embed = new EmbedBuilder()
-      .setTitle('Task Question')
+      .setTitle('سوال المهمة')
       .setDescription(question)
       .setColor('#00ff00');
 
@@ -794,11 +794,11 @@ class AmongUsGame {
       const isCorrect = selectedAnswer === correctAnswer;
       let replyOptions;
       if(player.isDead){
-        replyOptions = { content: "you can't do tasks (dead)", components: [], ephemeral: true };
+        replyOptions = { content: "لا يمكنك إتمام المهام (يا ميت). 💀🚫", components: [], ephemeral: true };
       }
 
       replyOptions = {
-        content: isCorrect ? 'Correct answer! Task Completed' : `Incorrect. The correct answer was ${correctAnswer}.`,
+        content: isCorrect ? 'إجابة صحيحة! المهمة مكتملة اذهب الي مكان اخر واكمل باقي المهمات ! ✅🎉' : `إجابة خاطئة. الإجابة الصحيحة كانت ${correctAnswer}. ❌🔍`,
         components: [],
         ephemeral: true
       };
@@ -824,7 +824,7 @@ class AmongUsGame {
 
 
   async handleKill(killerId, targetId,roundNum) {
-    if (!this.imposters.has(killerId)) return "You are not an imposter!";
+    if (!this.imposters.has(killerId)) return "أنت لست من الامبوستر! ❌👾";
 
     const killer = this.players.get(killerId);
     const target = this.players.get(targetId);
@@ -851,14 +851,14 @@ class AmongUsGame {
     this.killsThisRound.set(killerId, targetId); // Record the kill for this round
     
     // Announce the kill to the channel
-    await this.channel.send(`# ⚠️ warning : someone got killed search for him`);
+    await this.channel.send(`# ⚠️ تحذير: تم قتل شخص! ابحث عنه!`);
     this.playAudio("sounds-kill");
 
     // Notify the killed player
     const interaction = this.playerInteractions.get(targetId);
     if (interaction) {
       await interaction.followUp({ 
-        content: `You have been killed! You can no longer participate in the game, but you can watch silently. imposter killed you : <@${killerId}> `, 
+        content: `لقد تم قتلك! لا يمكنك المشاركة في اللعبة بعد الآن، لكن يمكنك المشاهدة بصمت. القاتل : <@${killerId}>. 💀👁️‍🗨️`, 
         ephemeral: true,
         files: [{ attachment: this.getImagePath(`kill.gif`), name: `kill.gif` }] 
       });
@@ -873,10 +873,10 @@ class AmongUsGame {
     
     if (this.checkImposterWin()) {
       this.endGame('imposter');
-      return `You have killed ${target.name}! Imposter wins!`;
+      return `لقد قمت بقتل ${target.name}! الفائز هو الامبوستر! 💀🏆`;
     }
     
-    return `You have killed ${target.name}!`;
+    return `لقد قمت بقتل ${target.name}! 💀🔪`;
   }
 
   async updateActionButtons(killerId) {
@@ -899,18 +899,18 @@ class AmongUsGame {
 
   async handleHint(playerId) {
     if (this.roundNumber - this.lastHintRound < 3) {
-      return "Hint is not available yet. Wait for 3 rounds between hints.";
+      return "التلميح غير متاح بعد. انتظر ثلاث جولات بين التلميحات. ⏳🔍";
     }
 
     this.lastHintRound = this.roundNumber;
 
     const deadBodiesInfo = Array.from(this.deadBodies.entries())
-      .map(([deadPlayerId, place]) => `${this.players.get(deadPlayerId).name} in ${place}`)
+      .map(([deadPlayerId, place]) => `${this.players.get(deadPlayerId).name} in ${this.places.get(place).displayName}`)
       .join(', ');
 
     const hintMessage = deadBodiesInfo
-      ? `There are dead bodies: ${deadBodiesInfo}`
-      : "There are no dead bodies at the moment.";
+      ? `هناك جثث في: ${deadBodiesInfo} !💀`
+      : "لا توجد جثث في الوقت الحالي. 🚫💀";
 
     const interaction = this.playerInteractions.get(playerId);
     if (interaction) {
@@ -928,19 +928,19 @@ class AmongUsGame {
 
   async handleReport(reporterId) {
     const reporter = this.players.get(reporterId);
-    if (!reporter || reporter.isDead) return "You can't report!";
+    if (!reporter || reporter.isDead || this.gameState =="ended") return "You can't report!";
 
     const reportedBody = Array.from(this.deadBodies.entries()).find(([_, place]) => place === reporter.place);
     if (!reportedBody) {
-      return "There's no dead body here to report!";
+      return "لا توجد جثة هنا لتقديم بلاغ عنها! 🚫👻";
     }
 
     if (this.reportedThisRound) {
-      return "A body has already been reported this round!";
+      return "تم الإبلاغ عن جثة في هذه الجولة بالفعل! 👤🚫";
     }
 
     if (this.gameEffects.get('isOxygenOff') && this.oxygenTasksRequired > this.oxygenTasksCompleted) {
-      return "Oxygen is off! Complete oxygen tasks first!";
+      return "الأوكسجين متوقف! أكملوا مهام الأوكسجين أولًا!";
     }
 
     this.reportedThisRound = true;
@@ -950,21 +950,21 @@ class AmongUsGame {
     // Announce the report to the channel
     const deadPlayer = this.players.get(reportedBody[0]);
     await this.channel.send({
-      content: `# Emergency Meeting! <@${reporter.id}> has reported <@${deadPlayer.id}>'s body in ${this.places.get(reporter.place).displayName}!`,
+      content: `# اجتماع طارئ! <@${reporter.id}> أبلغ عن جثة <@${deadPlayer.id}> في ${this.places.get(reporter.place).displayName}! 🚨👥`,
       files: [{ attachment: this.getImagePath(`someone-die.gif`), name: `someone-die.gif` }]
     });
     this.playAudio("sounds-emergency");
 
     this.startVoting();
-    return "A body has been reported! Emergency meeting called!";
+    return "تم الإبلاغ عن جثة! تم استدعاء اجتماع طارئ! 🚨💬";
   }
 
 
   async startVoting() {
     this.votes.clear();
     const embed = new EmbedBuilder()
-      .setTitle('Emergency Meeting')
-      .setDescription('A body has been reported! Vote to eject a player.')
+      .setTitle('اجتماع طارئ')
+      .setDescription('تم الإبلاغ عن جثة! صوّتوا لطرد لاعب. 🗳️💨')
       .setColor('#ff0000');
     this.openChat();
     const voteButtons = this.createVoteButtons();
@@ -983,7 +983,7 @@ class AmongUsGame {
       
       const voter = this.players.get(voterId);
       if (!voter || voter.isDead) {
-        await i.reply({ content: "You can't vote because you're either not in the game or dead!", ephemeral: true });
+        await i.reply({ content: "لا يمكنك التصويت لأنك إما لست في اللعبة أو أنك ميت! 🚫👾💀", ephemeral: true });
         return;
       }
 
@@ -992,7 +992,7 @@ class AmongUsGame {
       }
       
       this.votes.set(voterId, votedId);
-      await i.reply({ content: `You have voted for ${this?.players?.get(votedId)?.name || 'Skip'}.`, ephemeral: true });
+      await i.reply({ content: `لقد قمت باختيار ${this?.players?.get(votedId)?.name || 'تخطي'}.`, ephemeral: true });
       
       // Update vote counts
       await this.updateVoteCounts(message);
@@ -1005,7 +1005,7 @@ class AmongUsGame {
     collector.on('end', async (collected, reason) => {
       console.log("done here bro");
       if (reason === 'time') {
-        await message.edit({ content: "Voting has timed out! No votes were recorded." });
+        await message.edit({ content: "انتهى وقت التصويت! لم يتم تسجيل أي أصوات. ⏳🗳️" });
         await this.resolveVotes(message);
       }else{
         await this.resolveVotes(message);
@@ -1034,7 +1034,7 @@ class AmongUsGame {
         if (button.customId.includes("skip")) {
           updatedRow.addComponents(
             ButtonBuilder.from(button)
-              .setLabel(`Skip Vote (${voteCount})`)
+              .setLabel(`تخطي (${voteCount})`)
           );
         } else {
           updatedRow.addComponents(
@@ -1066,7 +1066,7 @@ class AmongUsGame {
     buttons.push(
       new ButtonBuilder()
         .setCustomId('vote_skip')
-        .setLabel('Skip Vote (0)')
+        .setLabel('تخطي (0)')
         .setStyle(ButtonStyle.Secondary)
     );
 
@@ -1109,7 +1109,7 @@ class AmongUsGame {
 
       const isImposter =  this.imposters.has(ejectedId);
       await this.channel.send({
-        content:`# <@${ejectedPlayer.id}> has been ejected! They were ${isImposter ? 'the Imposter' : 'a Crewmate'}.`,
+        content:`# <@${ejectedPlayer.id}> لقد تم طرد وقد كان  ${isImposter ? 'سفاح' : 'مواطن'}.`,
         files: [{ attachment: this.getImagePath(isImposter? 'imposter-dead.gif' : 'not-imposter-dead.gif'), name: `${isImposter? 'imposter-dead' : 'not-imposter-dead'}.gif` }]
       });
       this.playAudio("sounds-eject");
@@ -1131,7 +1131,7 @@ class AmongUsGame {
       }
     } else {
       console.log("SAME CASE");
-      await this.channel.send('# No one was ejected.');
+      await this.channel.send('# لم يُطرد أحد. من اللعبة 🚀');
       // this.isStartingRound = false;
       this.startRound(true);
       
@@ -1170,11 +1170,11 @@ class AmongUsGame {
     this.gameState = 'ended';
 
     const embed = new EmbedBuilder()
-      .setTitle('Game Over')
-      .setDescription(`The ${winner === 'imposter' ? 'Imposter' : 'Crewmates'} win!`)
+      .setTitle('انتهت اللعبة 🎮🚫')
+      .setDescription(`فازو الـ ${winner === 'imposter' ? 'سفاحين' : 'مواطنين'}! 🎉🏆!`)
       .addFields(
-        { name: 'Imposters', value: this.getImpostersList() },
-        { name: 'Crewmates', value: this.getCrewmatesList() }
+        { name: 'السفاحين', value: this.getImpostersList() || "no body" },
+        { name: 'المواطنين', value: this.getCrewmatesList() || "no body" }
       )
       .setColor(winner === 'imposter' ? '#ff0000' : '#00ff00');
 

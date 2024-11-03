@@ -39,13 +39,13 @@ module.exports = {
 
         if (killablePlayersButtons.components.length > 0) {
           await interaction.reply({
-            content: 'Select a player to kill:',
+            content: 'اختر لاعبًا لتقتله: ⚔️👤',
             components: [killablePlayersButtons],
             ephemeral: true
           });
         } else {
           await interaction.reply({
-            content: 'No players available to kill in your location.',
+            content: 'لا يوجد لاعبين متاحين للقتل في موقعك. 🚫👤',
             ephemeral: true
           });
         }

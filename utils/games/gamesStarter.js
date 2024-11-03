@@ -16,7 +16,7 @@ module.exports = {
 
     const existingGame = client.games.get(message.channelId);
     if (existingGame) {
-      return message.reply('A game is already in progress in this channel.');
+      return message.reply('فيه لعبة شغّالة بالفعل في هذه القناة. 🎮⏳');
     }
 
     const voiceChannel = message.guild.channels.cache.get(gameVoiceChanelId);
@@ -34,7 +34,7 @@ module.exports = {
     const game = new AmongUsGame(message.channel,connection,player);
     message.client.games.set(message.channelId, game);
     await game.startLobby();
-    await message.reply('A new Among Us game is starting! Join the lobby.');
+    await message.reply('لعبة امونج اص جديدة على وشك البدء! انضموا إلى اللوبي 🚀🕹️');
     soundFile = path.join(__dirname, '../../public/sounds', 'amogus.mp3');
     const resource = createAudioResource(soundFile);
     player.play(resource);
