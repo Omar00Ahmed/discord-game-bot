@@ -9,6 +9,7 @@ const player = createAudioPlayer();
  * @param {Message} message The message object
  */
 const execute = async (message, client) => {
+    return;
     if (message.author.bot) return;
     const [command, thePlayer, soundName] = message.content.split(" ");
     const member = message.member;
