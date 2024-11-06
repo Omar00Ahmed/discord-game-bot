@@ -1,4 +1,4 @@
-const { client } = require('../..');
+const { client } = require('../../config/discordClient');
 const AmongUsGame = require('./amoungs');
 const {ChannelType} = require("discord.js")
 const { joinVoiceChannel, createAudioPlayer,createAudioResource } = require('@discordjs/voice');
@@ -6,7 +6,7 @@ const path = require("path");
 const player = createAudioPlayer();
 
 const gameVoiceChanelId = "1295171888561258506";
-const allowedChannels = ["1300852265258586212"];
+const allowedChannels = ["1300852265258586212","1294731828950732924"];
 
 module.exports = {
   name: 'start_game',
@@ -15,8 +15,8 @@ module.exports = {
       return message.reply('This command can only be used in a server text channel.');
     }
 
-    const existingGame = client.games.get(message.channelId);
-    if (existingGame || Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId)) {
+    const existingGame = message.client?.games.get(message.channelId);
+    if (existingGame || Array.from(message.client?.gamesStarted.values()).some(game => game.channelId === message.channelId)) {
       return message.reply('A game is already in progress in this channel.');
     }
     if (!allowedChannels.includes(message.channelId)) {

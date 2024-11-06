@@ -21,7 +21,7 @@ module.exports = {
    * @param {Message} message The message object
    */
   async execute(message, client) {
-    if (message.author.bot) return; // Ignore bot messages
+    if (!message.author.bot) return; // Ignore bot messages
     if (!message.content.startsWith(prefix)) return;
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);

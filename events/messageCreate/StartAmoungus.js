@@ -1,5 +1,5 @@
 const execute = async message => {
-    if (message.author.bot) return;
+    if (!message.author.bot) return;
     if (!message.content.startsWith('-%-')) return;
 
     const args = message.content.slice('-%-'.length).trim().split(/ +/);

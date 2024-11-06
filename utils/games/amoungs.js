@@ -5,7 +5,7 @@ const path = require("path")
 
 const {  createAudioResource  } = require('@discordjs/voice');
 
-const {client} = require("../../index")
+const {client} = require("../../config/discordClient")
 
 class AmongUsGame {
   constructor(channel,connection,audioPlayer) {
@@ -45,7 +45,7 @@ class AmongUsGame {
     this.audioPlayer = audioPlayer;
 
     // Timer values as class members
-    this.lobbyWaitTime =  3 * 60 * 1000; // 1 minute
+    this.lobbyWaitTime =  3 * 60 * 1000; // 3 minute
     this.choosePlaceTime = 30000; // 30 seconds
     this.actionTime = 30000; // 30 seconds
     this.votingTime = 1000 * 60 * 2; // 1 minute
@@ -88,16 +88,16 @@ class AmongUsGame {
       .setLabel('Join Game')
       .setStyle(ButtonStyle.Primary);
 
-    const startButton = new ButtonBuilder()
-      .setCustomId('start_game')
-      .setLabel('Start Game')
-      .setStyle(ButtonStyle.Success);
+    const leaveButton = new ButtonBuilder()
+      .setCustomId('leave_game')
+      .setLabel('leave Game')
+      .setStyle(ButtonStyle.Danger);
 
-    const row = new ActionRowBuilder().addComponents(joinButton, startButton);
+    const row = new ActionRowBuilder().addComponents(joinButton,leaveButton);
 
     const lobbyMessage = await this.channel.send({ embeds: [embed], components: [row] });
 
-    const filter = i => ['join_game', 'start_game'].includes(i.customId);
+    const filter = i => ['join_game', 'leave_game'].includes(i.customId);
     const collector = lobbyMessage.createMessageComponentCollector({ filter, time: this.lobbyWaitTime });
 
     let timeLeft = 30; // 30 seconds countdown
@@ -115,10 +115,7 @@ class AmongUsGame {
           collector.stop();
           this.startGame();
         } else {
-          this.channel.send('لا يوجد عدد كافي من اللاعبين 🫤... اللعبة أُلغيت! 🎮🚫');
-          this.connection.destroy();
-          client.games.delete(this.channel.id);
-          lobbyMessage.edit({ embeds: [this.createLobbyEmbed()], components: [] });
+          collector.stop();
         }
       }
     }, 2000);
@@ -133,7 +130,16 @@ class AmongUsGame {
           } else {
             await i.reply({ content: 'لقد انضممت بالفعل إلى اللعبة! 🔄🎮', ephemeral: true });
           }
-        } else if (i.customId === 'start_game') {
+        }else if(i.customId === 'leave_game') {
+          if (this.players.has(i.user.id)) {
+            this.players.delete(i.user.id);
+            this.playerInteractions.delete(i.user.id);
+            await i.reply({ content: 'لقد تم إلغاء انضمامك إلى اللعبة! 🔄🎮', ephemeral: true });
+          } else {
+            await i.reply({ content: 'لم تنضم إلى اللعبة 🔄🎮', ephemeral: true });
+          }
+        }
+        else if (i.customId === 'start_game') {
           const member = await i.guild.members.fetch(i.user.id);
           if (!checkIfCanMute(member, "startGame")) return;
           if (this.players.size >= 4) {
@@ -159,7 +165,7 @@ class AmongUsGame {
       clearInterval(countdownInterval);
       if (this.gameState === "lobby") {
         this.channel.send('لا يوجد عدد كافي من اللاعبين 🫤... اللعبة أُلغيت! 🎮🚫');
-        this.connection.destroy();
+        this.connection?.destroy();
         client.games.delete(this.channel.id);
         lobbyMessage.edit({ embeds: [this.createLobbyEmbed()], components: [] });
       }
