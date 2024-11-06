@@ -100,6 +100,29 @@ class AmongUsGame {
     const filter = i => ['join_game', 'start_game'].includes(i.customId);
     const collector = lobbyMessage.createMessageComponentCollector({ filter, time: this.lobbyWaitTime });
 
+    let timeLeft = 30; // 30 seconds countdown
+    const countdownInterval = setInterval(async () => {
+      timeLeft -= 2;
+      if (timeLeft >= 0) {
+        await lobbyMessage.edit({ 
+          embeds: [this.createLobbyEmbed(this.players.size).setFooter({ text: `Starting in: ${timeLeft} seconds` })]
+        });
+      }
+      if (timeLeft <= 0) {
+        clearInterval(countdownInterval);
+        if (this.players.size >= 4) {
+          this.gameState = 'waiting';
+          collector.stop();
+          this.startGame();
+        } else {
+          this.channel.send('لا يوجد عدد كافي من اللاعبين 🫤... اللعبة أُلغيت! 🎮🚫');
+          this.connection.destroy();
+          client.games.delete(this.channel.id);
+          lobbyMessage.edit({ embeds: [this.createLobbyEmbed()], components: [] });
+        }
+      }
+    }, 2000);
+
     collector.on('collect', async i => {
       try {
         if (i.customId === 'join_game') {
@@ -114,6 +137,7 @@ class AmongUsGame {
           const member = await i.guild.members.fetch(i.user.id);
           if (!checkIfCanMute(member, "startGame")) return;
           if (this.players.size >= 4) {
+            clearInterval(countdownInterval);
             this.gameState = 'waiting';
             await i.reply({ content: 'بدأت اللعبة! 🎮✨', ephemeral: true });
             collector.stop();
@@ -123,13 +147,16 @@ class AmongUsGame {
           }
         }
     
-        await lobbyMessage.edit({ embeds: [this.createLobbyEmbed()] });
+        await lobbyMessage.edit({ 
+          embeds: [this.createLobbyEmbed(this.players.size).setFooter({ text: `Starting in: ${timeLeft} seconds` })]
+        });
       } catch (error) {
         console.error('Error handling interaction:', error);
       }
     });
 
     collector.on('end', collected => {
+      clearInterval(countdownInterval);
       if (this.gameState === "lobby") {
         this.channel.send('لا يوجد عدد كافي من اللاعبين 🫤... اللعبة أُلغيت! 🎮🚫');
         this.connection.destroy();
@@ -141,14 +168,16 @@ class AmongUsGame {
 
 
 
-  createLobbyEmbed() {
+  createLobbyEmbed(playerysCount) {
     return new EmbedBuilder()
       .setTitle('Among Us Game Lobby')
       .setDescription('انضم إلى اللعبة! (من 4 إلى 10 لاعبين) 🎮🚀')
-      .addFields({ name: '-: اللاعبون', value: this.getPlayerList() })
+      .addFields(
+        { name: '-: اللاعبون', value: this.getPlayerList() },
+        {name:"عدد اللاعبين",value:`(25/${playerysCount || 0})`}
+      )
       .setColor('#00ff00');
   }
-
   getPlayerList() {
     return this.players.size > 0 
       ? Array.from(this.players.values()).map(p => `<@${p.id}>`).join('\n')
@@ -683,7 +712,7 @@ class AmongUsGame {
 
   async handleTask(playerId, roundNum) {
     const player = this.players.get(playerId);
-    if (!player || player.isDead || this.imposters.has(player.id) || this.reportedThisRound || parseInt(roundNum) != this.roundNumber) {
+    if (!player || player.isDead || this.imposters.has(player.id) || this.reportedThisRound || parseInt(roundNum) != this.roundNumber || this.gameState !== "playing") {
       return "You can't do tasks!";
     }
 
@@ -691,7 +720,7 @@ class AmongUsGame {
 
     if (this.gameEffects.get('isOxygenOff') && player.place === 'hospital') {
       if (this.completedTasks.has(playerId)) {
-        return "You've already completed the oxygen task this round!";
+        return "لقد قمت بعمل مهمة بالفعل هذه الجولة !";
       }
 
       const taskQuestion = this.getRandomTaskQuestion();
@@ -743,6 +772,7 @@ class AmongUsGame {
       await this.updateActionButtons(playerId);
       return `تم إتمام المهمة في ${this.places.get(player.place).displayName}! ✅✨!`;
     } else {
+      await this.updateActionButtons(playerId);
       return "فشلت المهمة. حاول مرة أخرى في الجولة القادمة! ❌🔄";
     }
   }
@@ -789,12 +819,18 @@ class AmongUsGame {
     try {
       const filter = i => i.user.id === playerId && i.customId.startsWith('answer_');
       const response = await message.awaitMessageComponent({ filter, time: 30000 });
-
+      if(this.gameState !== "playing"){
+        return false;
+      }
       const selectedAnswer = response.customId.split('_')[1];
       const isCorrect = selectedAnswer === correctAnswer;
       let replyOptions;
       if(player.isDead){
         replyOptions = { content: "لا يمكنك إتمام المهام (يا ميت). 💀🚫", components: [], ephemeral: true };
+      }
+      if(this.reportedThisRound){
+        replyOptions = { content: "لا يمكنك إتمام المهام . 💀🚫", components: [], ephemeral: true };
+        return false;
       }
 
       replyOptions = {
@@ -830,19 +866,25 @@ class AmongUsGame {
     const target = this.players.get(targetId);
     
     if (this.imposters.has(targetId)) {
-      return "You can't kill an imposter!";
+      return "لا يمكنك قتل سفاح !";
     }
 
-    if (!killer || !target || killer.isDead || target.isDead || killer.place !== target.place || parseInt(roundNum) != this.roundNumber) {
-      return "Invalid kill attempt!";
+    if (!killer || !target || killer.isDead || target.isDead || killer.place !== target.place || parseInt(roundNum) != this.roundNumber || this.gameState == "ended") {
+      return "محاولة قتل خاطئة";
     }
+
+    // Check if there's a kill this round
+    if (this.killsThisRound.size > (this.players.size > 9 ? 1 : 0)) {
+      return "تم قتل شخص بالفعل هذه الجولة !";
+    }
+    
 
     if (this.reportedThisRound) {
-      return "A body has already been reported this round!";
+      return "تم الابلاغ عن جثة هذه الجولة !";
     }
 
     if (this.killsThisRound.has(killerId)) {
-      return "You have already killed someone this round!";
+      return "لقد قتلت شخص بالفعل هذه الجولة !";
     }
 
     target.isDead = true;
@@ -970,7 +1012,11 @@ class AmongUsGame {
     const voteButtons = this.createVoteButtons();
 
     const message = await this.channel.send({ embeds: [embed], components: voteButtons });
-
+    const rememberMeesage =  setTimeout(() => {
+      if(this && this?.gameState == "voting"){
+        message.reply({ content: "يرجى التصويت على لاعب قبل انتهاء الوقت !!"});
+      }
+    }, this.votingTime - 20000);
     const filter = i => this.players.has(i.user.id) && !this.players.get(i.user.id).isDead;
     const collector = message.createMessageComponentCollector({ filter,time:this.votingTime });
 
@@ -1003,7 +1049,8 @@ class AmongUsGame {
     });
 
     collector.on('end', async (collected, reason) => {
-      console.log("done here bro");
+      clearTimeout(rememberMeesage);
+      
       if (reason === 'time') {
         await message.edit({ content: "انتهى وقت التصويت! لم يتم تسجيل أي أصوات. ⏳🗳️" });
         await this.resolveVotes(message);
@@ -1097,7 +1144,11 @@ class AmongUsGame {
       }
     });
     this.isRoundInProgress = false;
-    if (ejectedId && ejectedId !== 'skip') {
+
+    const alivePlayers = Array.from(this.players.values()).filter(p => !p.isDead).length;
+    const requiredVotes = Math.floor(alivePlayers / 2) + 1;
+
+    if (ejectedId && ejectedId !== 'skip' && maxVotes >= requiredVotes) {
       const ejectedPlayer = this.players.get(ejectedId);
       ejectedPlayer.isDead = true;
       this.deadPlayers.add(ejectedId);
@@ -1109,7 +1160,7 @@ class AmongUsGame {
 
       const isImposter =  this.imposters.has(ejectedId);
       await this.channel.send({
-        content:`# <@${ejectedPlayer.id}> لقد تم طرد وقد كان  ${isImposter ? 'سفاح' : 'مواطن'}.`,
+        content:`# لقد تم طرد <@${ejectedPlayer.id}> وقد كان  ${isImposter ? 'سفاح' : 'مواطن'}.`,
         files: [{ attachment: this.getImagePath(isImposter? 'imposter-dead.gif' : 'not-imposter-dead.gif'), name: `${isImposter? 'imposter-dead' : 'not-imposter-dead'}.gif` }]
       });
       this.playAudio("sounds-eject");
@@ -1141,8 +1192,7 @@ class AmongUsGame {
     this.deadBodies.clear();
     this.votes.clear();
     await message.edit({ components: [] }); // Disable voting buttons
-  }
-  
+  }  
 
   checkAllTasksCompleted() {
     return Array.from(this.players.values())

@@ -26,30 +26,34 @@ module.exports = {
         await interaction.deleteReply();
         await interaction.followUp({ content: result, ephemeral: true });
       } else if (interaction.customId === 'kill') {
-        const killablePlayersButtons = new ActionRowBuilder().addComponents(
-          ...Array.from(game.players.values())
-            .filter(p => !p.isDead && p.id !== playerId && p.place === player.place)
-            .map(p => 
+        const killablePlayers = Array.from(game.players.values())
+          .filter(p => !p.isDead && p.id !== playerId && p.place === player.place);
+
+        const buttonRows = [];
+        for (let i = 0; i < killablePlayers.length; i += 5) {
+          const row = new ActionRowBuilder().addComponents(
+            ...killablePlayers.slice(i, i + 5).map(p =>
               new ButtonBuilder()
                 .setCustomId(`kill_${p.id}_${game.roundNumber}`)
                 .setLabel(p.name)
                 .setStyle(ButtonStyle.Danger)
             )
-        );
+          );
+          buttonRows.push(row);
+        }
 
-        if (killablePlayersButtons.components.length > 0) {
+        if (buttonRows.length > 0) {
           await interaction.reply({
-            content: 'اختر لاعبًا لتقتله: ⚔️👤',
-            components: [killablePlayersButtons],
+            content: 'Select a player to kill:',
+            components: buttonRows,
             ephemeral: true
           });
         } else {
           await interaction.reply({
-            content: 'لا يوجد لاعبين متاحين للقتل في موقعك. 🚫👤',
+            content: 'No players available to kill in your location.',
             ephemeral: true
           });
-        }
-      } else if (interaction.customId.startsWith('kill_')) {
+        }      } else if (interaction.customId.startsWith('kill_')) {
         const theArgs =interaction.customId.split('_')
         const targetId = theArgs[1];
         const RoundNum = theArgs[2];
