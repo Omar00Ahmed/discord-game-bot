@@ -38,9 +38,13 @@ module.exports = {
 
     if (command === 'توصيل') {
       const players = {}; // Player-specific sessions
-      if(Array.from(client?.gamesStarted.values()).some(game => game) || !allowedChnanels.includes(message.channelId)) return message.react("❌");
-      console.log("ha");
-      client.gamesStarted.set("wires",true);
+      if (Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChannels.includes(message.channelId)) {
+        return message.react("❌");
+      }
+      client.gamesStarted.set("wires", {
+        started:true,
+        channelId: message.channelId,
+      });
       const createPlayerSession = () => {
         return {
           selectedWire: null,

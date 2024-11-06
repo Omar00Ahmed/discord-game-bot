@@ -395,8 +395,11 @@ class AmongUsGame {
       return "Only imposters can cut oxygen!";
     }
     
-    if (this.oxygenCutUsed.has(imposterPlayerId)) {
-      return "You have already used your oxygen cut ability this game!";
+    // if (this.oxygenCutUsed.has(imposterPlayerId)) {
+    //   return "You have already used your oxygen cut ability this game!";
+    // }
+    if (this.oxygenCutUsed.size > 0) {
+      return "تم قطع الاكسجين بالفعل في هذه اللعبة من قبل";
     }
     
     this.gameEffects.set('oxygenCutNextRound', true);

@@ -32,11 +32,13 @@ module.exports = {
     const command = args.shift().toLowerCase();
 
     if (command === 'تخمين') {
-      if (Array.from(client?.gamesStarted.values()).some(game => game) || !allowedChannels.includes(message.channelId)) {
+      if (Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChannels.includes(message.channelId)) {
         return message.react("❌");
       }
-
-      client.gamesStarted.set("numberGuess", true);
+      client.gamesStarted.set("numberGuess", {
+        started:true,
+        channelId: message.channelId,
+      });
       const targetNumber = Math.floor(Math.random() * MAX_NUMBER) + 1;
       console.log(targetNumber);
       const players = new Map();
