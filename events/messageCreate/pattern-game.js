@@ -30,9 +30,10 @@ module.exports = {
     const command = args.shift().toLowerCase();
 
     if (command === 'نمط') {
-      if (Array.from(client?.gamesStarted.values()).some(game => game) || !allowedChannels.includes(message.channelId)) {
+      if (Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChannels.includes(message.channelId)) {
         return message.react("❌");
       }
+      
 
       let difficulty = DEFAULT_DIFFICULTY;
       if (args.length > 0) {
@@ -42,7 +43,10 @@ module.exports = {
         }
       }
 
-      client.gamesStarted.set("patternGame", true);
+      client.gamesStarted.set("patternGame", {
+        started:true,
+        channelId: message.channelId,
+      });
       const players = new Map();
       let gameEnded = false;
 

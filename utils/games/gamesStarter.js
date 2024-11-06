@@ -6,6 +6,7 @@ const path = require("path");
 const player = createAudioPlayer();
 
 const gameVoiceChanelId = "1295171888561258506";
+const allowedChannels = ["1300852265258586212"];
 
 module.exports = {
   name: 'start_game',
@@ -15,16 +16,18 @@ module.exports = {
     }
 
     const existingGame = client.games.get(message.channelId);
-    if (existingGame) {
+    if (existingGame || Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId)) {
       return message.reply('A game is already in progress in this channel.');
     }
-
+    if (!allowedChannels.includes(message.channelId)) {
+      return message.reply(`\nلا يمكن بدأ اللعبة في هذه القناة , يمكنك البدأ في ${allowedChannels.map(channel => `<#${channel}>`).join('\n')}`);
+    }
     const voiceChannel = message.guild.channels.cache.get(gameVoiceChanelId);
     if (!voiceChannel) {
       return message.reply('Could not find the voice channel for the game.');
     }
     
-    const connection = await joinVoiceChannel({
+    const connection = joinVoiceChannel({
       channelId: voiceChannel.id,
       guildId: message.guild.id,
       adapterCreator: message.guild.voiceAdapterCreator,

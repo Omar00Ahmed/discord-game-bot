@@ -67,11 +67,13 @@ module.exports = {
     const command = args.shift().toLowerCase();
 
     if (command === 'بحث') {
-      if (Array.from(client?.gamesStarted.values()).some(game => game) || !allowedChannels.includes(message.channelId)) {
+      if (Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChannels.includes(message.channelId)) {
         return message.react("❌");
       }
-
-      client.gamesStarted.set("buttonGrid", true);
+      client.gamesStarted.set("buttonGrid", {
+        started:true,
+        channelId: message.channelId,
+      });
       const players = new Map();
       let remainingButtons = TOTAL_BUTTONS;
       let gameEnded = false;

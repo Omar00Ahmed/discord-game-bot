@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const {insertNewPlayer} = require("../../mongoose/utils/getAllplayers");
+
 const { createNewGuild } = require("../../mongoose/utils/GuildManager");
 // const connectionString = process.env.MONGODB_URI_STRING;
 
@@ -14,7 +14,7 @@ const execute = async (client)=>{
     })
     .then(() => {
         console.log('Connected to MongoDB');
-        createNewGuild("54621621356","-")
+        // createNewGuild("54621621356","-")
     })
     .catch((err) => {
         console.error('Error connecting to MongoDB', err);

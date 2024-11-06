@@ -28,11 +28,14 @@ module.exports = {
     const command = args.shift().toLowerCase();
 
     if (command === 'الجسر') {
-      if (Array.from(client?.gamesStarted.values()).some(game => game) || !allowedChannels.includes(message.channelId)) {
+      const existingGame = client.games.get(message.channelId);
+      if (existingGame || Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChannels.includes(message.channelId)) {
         return message.react("❌");
       }
-
-      client.gamesStarted.set("glassBridge", true);
+      client.gamesStarted.set("glassBridge", {
+        started:true,
+        channelId: message.channelId,
+      });
       const glassPath = createGlassPath(TOTAL_ROWS);
       console.log(glassPath);
       let players = new Set();
@@ -102,7 +105,7 @@ module.exports = {
         lobbyCollector.on('end', async (collected, reason) => {
           if (players.size < 4) {
             await lobbyMessage.edit({ content: 'عدد لاعبين غير كافي ! يجب على الاقل وجود 4 لاعبين', embeds: [], components: [] });
-            client.gamesStarted.set("glassBridge", false);
+            client.gamesStarted.delete("glassBridge")
             return;
           }
 
@@ -279,7 +282,7 @@ module.exports = {
           if (gameEnded) return;
           gameEnded = true;
         
-          client.gamesStarted.set("glassBridge", false);
+          client.gamesStarted.delete("glassBridge");
 
           const endEmbed = new EmbedBuilder()
             .setColor('#0099ff')
@@ -327,7 +330,7 @@ module.exports = {
       } catch (error) {
         console.error('Error in the Glass Bridge game:', error);
         await message.reply('حدث خطأ أثناء اللعبة. حاول مرة أخرى لاحقًا.').catch(console.error);
-        client.gamesStarted.set("glassBridge", false);
+        client.gamesStarted.delete("glassBridge")
       }
     }
   },
