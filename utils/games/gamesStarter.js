@@ -37,7 +37,7 @@ module.exports = {
     const game = new AmongUsGame(message.channel,connection,player);
     message.client.games.set(message.channelId, game);
     await game.startLobby();
-    await message.reply('A new Among Us game is starting! Join the lobby.');
+    await message.reply('لعبة امونج اص جديدة على وشك البدء! انضموا إلى اللوبي 🚀🕹️');
     soundFile = path.join(__dirname, '../../public/sounds', 'amogus.mp3');
     const resource = createAudioResource(soundFile);
     player.play(resource);
