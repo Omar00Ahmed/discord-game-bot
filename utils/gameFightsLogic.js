@@ -211,7 +211,7 @@ async function waitForAnswer(channel, gameState, team1Player, team2Player,lobby,
             if (selectedIndex === gameState.currentQuestion.correctIndex) {
                 collector.stop('correct');
                 const winningTeam = interaction.user.id === team1Player ? 'team1' : 'team2';
-                const newPoints = await addPlayerPoints(interaction.user.id,1);
+                const newPoints = await addPlayerPoints(interaction.user.id,interaction.guild.id,1);
                 const pointsButton = new ButtonBuilder()
                     .setCustomId('points')
                     .setLabel(`النقاط : ${newPoints}`)

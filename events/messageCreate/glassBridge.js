@@ -1,10 +1,10 @@
-const { Message, ButtonBuilder, ActionRowBuilder, ButtonStyle, ComponentType, EmbedBuilder } = require('discord.js');
+const { Message, ButtonBuilder, ActionRowBuilder, ButtonStyle, ComponentType, EmbedBuilder,PermissionsBitField } = require('discord.js');
 const { prefix } = require("../../utils/MessagePrefix");
-const { addPlayerPoints } = require("../../db/playersScore");
+const { addPlayerPoints,addTototalGames } = require("../../db/playersScore");
 
 const GAME_DURATION = 300000; // 5 minutes in milliseconds
 const LOBBY_DURATION = 30000; // 30 seconds for lobby
-const TOTAL_ROWS = 15; // Total number of rows in the game
+const TOTAL_ROWS = 10; // Total number of rows in the game
 const ROWS_PER_MESSAGE = 5; // Number of rows per message (Discord limit)
 
 const allowedChannels = [
@@ -21,13 +21,15 @@ module.exports = {
    * @param {Message} message The message object
    */
   async execute(message, client) {
-    if (message.author.bot) return; // Ignore bot messages
+  
     if (!message.content.startsWith(prefix)) return;
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
     if (command === 'الجسر') {
+      if(message.author.bot || !message.member.permissions.has(PermissionsBitField.Flags.Administrator) && !checkIfCanMute(message.member,"moderate")) return;
+
       const existingGame = client.games.get(message.channelId);
       if (existingGame || Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChannels.includes(message.channelId)) {
         return message.react("❌");
@@ -70,6 +72,7 @@ module.exports = {
           .addFields({ name: 'اللاعبون', value: 'لا يوجد لاعبون حتى الآن' });
 
         const lobbyMessage = await message.reply({
+          content:`||@everyone||`,
           embeds: [lobbyEmbed],
           components: [lobbyRow]
         });
@@ -82,7 +85,7 @@ module.exports = {
         lobbyCollector.on('collect', async (interaction) => {
           if (interaction.customId === 'join') {
             players.add(interaction.user.id);
-            await interaction.update({ content: ` `});
+            await interaction.update({ content: `||@everyone||`});
           } else if (interaction.customId === 'leave') {
             players.delete(interaction.user.id);
             await interaction.update({ content: ` `});
@@ -110,6 +113,11 @@ module.exports = {
           }
 
           if (reason === 'gameStart' || reason === 'time') {
+            setTimeout(() => {
+              if (!gameEnded) {
+                endGame('timeout');
+              }
+            }, GAME_DURATION);
             lobbyMessage.edit({components:[]});
             await startGame();
           }
@@ -119,6 +127,10 @@ module.exports = {
 
         async function startGame() {
           playersOriginalCount = players.size;
+          players.forEach(playerId =>{
+            addTototalGames(playerId,message.guild.id);
+            
+          })
           // Shuffle players array
           playersArray = Array.from(players);
           for (let i = playersArray.length - 1; i > 0; i--) {
@@ -249,7 +261,7 @@ module.exports = {
                 }
                 
                 playersAttempts.set(currentPlayer, (playersAttempts.get(currentPlayer) || 0) + 1);
-                if(playersAttempts.get(currentPlayer) >= (playersOriginalCount > 6 ? 0 : 2)) {
+                if(playersAttempts.get(currentPlayer) >= (playersOriginalCount > 9 ? 0 : 2)) {
                     players.delete(currentPlayer);
                 }
 
@@ -290,7 +302,7 @@ module.exports = {
 
           if (reason === 'win') {
             const pointsEarned = 10; // You can adjust this as needed
-            const newPoints = await addPlayerPoints(winner, pointsEarned);
+            const newPoints = await addPlayerPoints(winner,message.guild.id ,pointsEarned);
 
             endEmbed.setDescription(`🏆 <@${winner}> فاز باللعبة وحصل على ${pointsEarned} نقاط!`)
               .addFields({ name: 'النقاط الجديدة', value: `${newPoints}` });
@@ -321,11 +333,7 @@ module.exports = {
         }
 
         // Set a timeout for the entire game
-        setTimeout(() => {
-          if (!gameEnded) {
-            endGame('timeout');
-          }
-        }, GAME_DURATION);
+        
 
       } catch (error) {
         console.error('Error in the Glass Bridge game:', error);

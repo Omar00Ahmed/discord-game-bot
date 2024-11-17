@@ -56,7 +56,7 @@ const execute = async (message, client) => {
 // Handler functions for each command
 async function handlePoints(message) {
     const targetUser = message.mentions.users.first() || message.author;
-    const playerPoints = await getPlayerPoints(targetUser.id);
+    const playerPoints = await getPlayerPoints(targetUser.id,message.guild.id);
 
     if (playerPoints === null) {
         return message.reply("لا يوجد لاعب بهذا الاسم");
@@ -85,7 +85,7 @@ async function handleResetPoints(message) {
     if (checkIfCanUse(message)) {
         const mentionedUser = message.mentions.users.first();
         if (mentionedUser) {
-            await resetPlayerPoints(mentionedUser.id);
+            await resetPlayerPoints(mentionedUser.id,message.guild.id);
             await message.reply(`تم تصفير نقاط اللاعب ${mentionedUser.username} بنجاح.`);
         } else {
             const { topPlayers } = await resetAllPlayersPoints();
@@ -110,7 +110,7 @@ async function handleResetPoints(message) {
 
 async function handleTopPlayers(message, client) {
     
-        const { topPlayers } = await getTopPlayers(10);
+        const { topPlayers } = await getTopPlayers(message.guild.id,10);
         const topThreeEmbed = new EmbedBuilder()
             .setColor('#FFD700')
             .setTitle('أفضل 10 لاعبين :')
@@ -134,7 +134,7 @@ async function handleSetPoints(message, args) {
         const pointsToSet = parseInt(args[1]);
 
         if (mentionedUser && !isNaN(pointsToSet) && pointsToSet >= 0) {
-            await upsertPlayerPoints(mentionedUser.id, pointsToSet);
+            await upsertPlayerPoints(mentionedUser.id,message.guild.id ,pointsToSet);
             await message.reply(`تم تعيين نقاط اللاعب <@${mentionedUser.id}> إلى ${pointsToSet} بنجاح.`);
         } else {
             await message.reply('الرجاء إدخال عدد صحيح وغير سالب.');
@@ -150,7 +150,7 @@ async function handleAddPoints(message, args) {
         const pointsToAdd = parseInt(args[1]);
 
         if (mentionedUser && !isNaN(pointsToAdd) && pointsToAdd >= 0) {
-            await addPlayerPoints(mentionedUser.id, pointsToAdd);
+            await addPlayerPoints(mentionedUser.id,message.guild.id, pointsToAdd);
             await message.reply(`تم اضافة نقاط اللاعب <@${mentionedUser.id}> إلى ${pointsToAdd} بنجاح.`);
         } else {
             await message.reply('الرجاء إدخال عدد صحيح وغير سالب.');

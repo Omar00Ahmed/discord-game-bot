@@ -1,6 +1,6 @@
 const { Message, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
 const { prefix } = require("../../utils/MessagePrefix");
-const { addPlayerPoints } = require("../../db/playersScore");
+const { addPlayerPoints,addTototalGames } = require("../../db/playersScore");
 
 const GAME_DURATION = 60000; // 1 minute in milliseconds
 const GRID_SIZE = 4;
@@ -70,6 +70,7 @@ module.exports = {
       if (Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChannels.includes(message.channelId)) {
         return message.react("❌");
       }
+      const alreadyCounted = new Set();
       client.gamesStarted.set("buttonGrid", {
         started:true,
         channelId: message.channelId,
@@ -118,6 +119,10 @@ module.exports = {
             await interaction.deferUpdate();
           
             const playerId = interaction.user.id;
+            if(!alreadyCounted.has(playerId)){
+              addTototalGames(playerId,message.guild.id);
+              alreadyCounted.add(playerId);
+            }
             if (!players.has(playerId)) {
               players.set(playerId, { points: 0, coins: 0, attempts: 0 });
             }
@@ -133,7 +138,7 @@ module.exports = {
               buttons[buttonIndex].state = 'coin';
           
               // Asynchronously update player points, don't block interaction response
-              addPlayerPoints(playerId, pointsEarned).then(async (newPoints) => {
+              addPlayerPoints(playerId, message.guild.id,pointsEarned).then(async (newPoints) => {
                 const pointsButton = new ButtonBuilder()
                     .setCustomId('points')
                     .setLabel(`النقاط : ${newPoints}`)
@@ -158,7 +163,7 @@ module.exports = {
               buttons[buttonIndex].state = 'point';
           
               // Asynchronously update player points
-              addPlayerPoints(playerId, pointsEarned).then(async (newPoints) => {
+              addPlayerPoints(playerId,message.guild.id ,pointsEarned).then(async (newPoints) => {
                 const pointsButton = new ButtonBuilder()
                     .setCustomId('points')
                     .setLabel(`النقـاط : ${newPoints}`)

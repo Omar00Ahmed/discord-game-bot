@@ -1,8 +1,9 @@
 const express = require('express');
 const { decode } = require("next-auth/jwt");
 const { PermissionFlagsBits } = require('discord.js');
-const client = require('../config/discordClient');
-
+const {client} = require('../config/discordClient');
+const {getTopPlayers} = require("../db/playersScore");
+const {getGuildGamesSettings} = require("../mongoose/utils/GuildManager")
 const router = express.Router();
 
 // Cache configuration
@@ -46,12 +47,34 @@ router.get('/:guildId', async (req, res) => {
         ]);
 
         if (member && member.permissions.has(PermissionFlagsBits.Administrator)) {
+            const topPlayersData = await getTopPlayers(10);
+            
+            const topPlayers = await Promise.all(topPlayersData.topPlayers.map(async player => {
+                try {
+                    const member = await guild.members.fetch(player.discord_id);
+                    return {
+                        ...player,
+                        nickname: member.nickname || member.user.username,
+                        icon: member.user.displayAvatarURL()
+                    };
+                } catch (error) {
+                    return {
+                        ...player,
+                        nickname: 'Unknown User',
+                        icon: null
+                    };
+                }
+            }));
+            
+            const gameSettings = await getGuildGamesSettings("999450379152527431");
             const guildInfo = {
                 id: guild.id,
                 name: guild.name,
                 icon: guild.iconURL(),
                 members: guild.memberCount,
                 owner: owner.user.tag,
+                topPlayers: topPlayers,
+                gameSettings: gameSettings.gameSettings || {}
             };
 
             // Update cache
@@ -60,12 +83,15 @@ router.get('/:guildId', async (req, res) => {
                 timestamp: Date.now()
             });
 
+            
             res.json(guildInfo);
+        
         } else {
             res.status(403).json({ error: 'User is not an administrator in this guild.' });
         }
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch guild information.' });
+        console.log(error)
     }
 });
 

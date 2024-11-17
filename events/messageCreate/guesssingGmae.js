@@ -1,6 +1,6 @@
 const { Message,ButtonBuilder,ActionRowBuilder,ButtonStyle } = require('discord.js');
 const { prefix } = require("../../utils/MessagePrefix");
-const { addPlayerPoints } = require("../../db/playersScore");
+const { addPlayerPoints,addTototalGames } = require("../../db/playersScore");
 
 const GAME_DURATION = 60000; // 1 minute in milliseconds
 const MAX_NUMBER = 35; // Maximum number to guess
@@ -30,11 +30,11 @@ module.exports = {
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
-
     if (command === 'تخمين') {
       if (Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChannels.includes(message.channelId)) {
         return message.react("❌");
       }
+      const alreadyCounted = new Set();
       client.gamesStarted.set("numberGuess", {
         started:true,
         channelId: message.channelId,
@@ -57,7 +57,10 @@ module.exports = {
 
           const guess = parseInt(m.content);
           const playerId = m.author.id;
-
+          if(!alreadyCounted.has(playerId)){
+            addTototalGames(playerId,message.guild.id);
+            alreadyCounted.add(playerId);
+          }
           if (!players.has(playerId)) {
             players.set(playerId, { guesses: 0 });
           }
@@ -88,7 +91,7 @@ module.exports = {
 
           if (reason === 'win') {
             const pointsEarned = calculatePoints(tries);
-            const newPoints = await addPlayerPoints(winner.id, pointsEarned);
+            const newPoints = await addPlayerPoints(winner.id, message.guild.id,pointsEarned);
 
             const pointsButton = new ButtonBuilder()
                 .setCustomId('points')

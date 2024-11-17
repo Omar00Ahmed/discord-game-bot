@@ -17,4 +17,25 @@ async function createNewGuild(guildID, globalMessagePrefix) {
     }
 }
 
+async function getGuildSettings(guildID) {
+    try {
+        // Find the guild settings by guildID
+        const guildSettings = await Guild.findOne({ guildID });
+        return guildSettings;
+    } catch (error) {
+        console.error("Error fetching guild settings:", error);
+        throw error;
+    }
+}
+
+async function getGuildGamesSettings(guildID) {
+    try {
+        // Find the guild settings by guildID
+        const guildSettings = await Guild.findOne({ guildID }).select('games');
+        return guildSettings;
+    } catch (error) {
+        console.error("Error fetching guild settings:", error);
+        throw error;
+    }
+}
 module.exports = { createNewGuild };

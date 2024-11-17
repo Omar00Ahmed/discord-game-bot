@@ -64,4 +64,4 @@ loadEvents(client);
 
 client.login(process.env.DISCORD_TOKEN) 
 
-module.exports = client;
+module.exports = {client};

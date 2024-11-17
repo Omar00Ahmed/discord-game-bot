@@ -1,7 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,Message } = require('discord.js');
 const { prefix } = require("../../utils/MessagePrefix");
 
-const {upsertPlayerPoints,getPlayerPoints,deletePlayerPoints,addPlayerPoints} = require("../../db/playersScore")
+const {addPlayerPoints,addTototalGames} = require("../../db/playersScore")
 const GAME_DURATION = 20000; // 1 minute in milliseconds
 const WIRE_COLORS = ['🔴', '🟢', '🔵', '🟡']; // Emoji representations of colors
 //updated
@@ -38,9 +38,10 @@ module.exports = {
 
     if (command === 'توصيل') {
       const players = {}; // Player-specific sessions
-      if (Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChannels.includes(message.channelId)) {
+      if (Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChnanels.includes(message.channelId)) {
         return message.react("❌");
       }
+      const alreadyCounted = new Set();
       client.gamesStarted.set("wires", {
         started:true,
         channelId: message.channelId,
@@ -135,6 +136,11 @@ module.exports = {
             players[i.user.id] = createPlayerSession();
           }
 
+          if(!alreadyCounted.has(i.user.id)){
+            addTototalGames(i.user.id,message.guild.id);
+            alreadyCounted.add(i.user.id);
+          }
+
           const playerState = players[i.user.id];
 
           try {
@@ -202,7 +208,7 @@ module.exports = {
             const winner = collected.last().user;
         
             // Award the winner points
-            const newPoints = await addPlayerPoints(winner.id, 1);
+            const newPoints = await addPlayerPoints(winner.id,message.guild.id, 1);
         
             // Create a points button to display the winner's new points
             const pointsButton = new ButtonBuilder()

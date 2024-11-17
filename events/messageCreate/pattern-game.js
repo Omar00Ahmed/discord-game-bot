@@ -1,6 +1,6 @@
 const { Message, AttachmentBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
 const { prefix } = require("../../utils/MessagePrefix");
-const { addPlayerPoints, getPlayerPoints } = require("../../db/playersScore");
+const { addPlayerPoints,addTototalGames } = require("../../db/playersScore");
 const { createCanvas } = require("canvas");
 const {createPatternImage,getRandomPattern} = require("../../utils/patternGameHelpers")
 const GAME_DURATION = 20000; // 20 seconds in milliseconds
@@ -28,12 +28,12 @@ module.exports = {
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
-
     if (command === 'نمط') {
       if (Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChannels.includes(message.channelId)) {
         return message.react("❌");
       }
       
+      const alreadyCounted = new Set();
 
       let difficulty = DEFAULT_DIFFICULTY;
       if (args.length > 0) {
@@ -107,6 +107,10 @@ module.exports = {
             if (gameEnded) return;
 
             const playerId = interaction.user.id;
+            if(!alreadyCounted.has(playerId)){
+              addTototalGames(playerId,message.guild.id);
+              alreadyCounted.add(playerId);
+            }
             if (!players.has(playerId)) {
               players.set(playerId, { pattern: [], attempts: 0 });
             }
@@ -154,7 +158,7 @@ module.exports = {
             });
             if (reason === 'winner') {
               const pointsEarned = Math.floor((difficulty / 2) + 1);
-              const newPoints = await addPlayerPoints(winnerId, pointsEarned);
+              const newPoints = await addPlayerPoints(winnerId, message.guild.id,pointsEarned);
               const pointsButton = new ButtonBuilder()
                 .setCustomId('points')
                 .setLabel(`النقاط : ${newPoints} (+ ${pointsEarned})`)
