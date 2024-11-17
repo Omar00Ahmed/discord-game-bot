@@ -22,6 +22,7 @@ module.exports = {
    */
   async execute(message, client) {
   
+  
     if (!message.content.startsWith(prefix)) return;
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);

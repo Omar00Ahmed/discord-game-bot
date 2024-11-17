@@ -1,7 +1,7 @@
 const express = require('express');
 const { decode } = require("next-auth/jwt");
 const { PermissionFlagsBits } = require('discord.js');
-const client = require('../config/discordClient');
+const {client} = require('../config/discordClient');
 
 const router = express.Router();
 

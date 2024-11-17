@@ -2,7 +2,7 @@
 
 const express = require('express');
 const cors = require('cors');
-const client = require('./config/discordClient'); // Import the client to ensure it's initialized
+const {client} = require('./config/discordClient'); // Import the client to ensure it's initialized
 
 const app = express();
 const port = 3005;
