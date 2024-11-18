@@ -1,7 +1,7 @@
 const Guild = require("../Schema/Guild"); // Adjust the path to where your schema file is saved
 
 async function createNewGuild(guildID, globalMessagePrefix) {
-  try {
+    try {
         // Create a new guild instance
         const newGuild = new Guild({
             guildID: guildID || "defaultGuildID", // Use the provided guildID or fallback to default
@@ -38,4 +38,45 @@ async function getGuildGamesSettings(guildID) {
         throw error;
     }
 }
-module.exports = { createNewGuild };
+
+async function updateGuildSettings(guildID, newSettings) {
+    try {
+        // Find the guild settings by guildID and update them
+        const updatedSettings = await Guild.findOneAndUpdate(
+            { guildID },
+            { $set: newSettings },
+            { new: true } // Return the updated document
+        );
+        return updatedSettings;
+    } catch (error) {
+        console.error("Error updating guild settings:", error);
+        throw error;
+    }
+}
+
+async function updateGuildGamesSettings(guildID, newGames) {
+    try {
+        // Convert the newGames object into dot notation format
+        const updates = {};
+        for (const [key, value] of Object.entries(newGames)) {
+            updates[`games.${key}`] = value;
+        }
+        
+        const updatedSettings = await Guild.findOneAndUpdate(
+            { guildID },
+            { $set: updates },
+            { new: true }
+        );
+        return updatedSettings;
+    } catch (error) {
+        console.error("Error updating guild games settings:", error);
+        throw error;
+    }
+}
+module.exports = { 
+    createNewGuild,
+    getGuildSettings,
+    getGuildGamesSettings,
+    updateGuildSettings,
+    updateGuildGamesSettings
+};

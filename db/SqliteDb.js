@@ -27,32 +27,120 @@ const db = new sqlite3.Database('sanalikus.db',sqlite3.OPEN_READWRITE, (err) => 
 
 
 
-db.run(`DROP TABLE IF EXISTS players_points_temp`);
+async function  execute (){
+    await new Promise((resolve, reject) => {
+        db.run(`DROP TABLE IF EXISTS players_points_temp`, (err) => {
+            if (err) {
+                console.error('Error dropping players_points_temp table:', err);
+                reject(err);
+            }
+            resolve();
+        });
+    });
+    
+    await new Promise((resolve, reject) => {
+        db.run(`CREATE TABLE players_points_temp (
+            discord_id TEXT,
+            guild_id TEXT default '999450379152527431',
+            points INTEGER DEFAULT 0,
+            kill_points INTEGER DEFAULT 0,
+            task_points INTEGER DEFAULT 0,
+            total_games INTEGER DEFAULT 0,
+            total_amoungus_games INTEGER DEFAULT 0,
+            PRIMARY KEY (discord_id, guild_id)
+        )`, (err) => {
+            if (err) {
+                console.error('Error creating players_points_temp table:', err);
+                reject(err);
+            }
+            resolve();
+        });
+    });
+    
+    await new Promise((resolve, reject) => {
+        db.run(`CREATE INDEX idx_points ON players_points_temp(points)`, (err) => {
+            if (err) {
+                console.error('Error creating idx_points index:', err);
+                reject(err);
+            }
+            resolve();
+        });
+    });
+    
+    await new Promise((resolve, reject) => {
+        db.run(`CREATE INDEX idx_kill_points ON players_points_temp(kill_points)`, (err) => {
+            if (err) {
+                console.error('Error creating idx_kill_points index:', err);
+                reject(err);
+            }
+            resolve();
+        });
+    });
+    
+    await new Promise((resolve, reject) => {
+        db.run(`CREATE INDEX idx_task_points ON players_points_temp(task_points)`, (err) => {
+            if (err) {
+                console.error('Error creating idx_task_points index:', err);
+                reject(err);
+            }
+            resolve();
+        });
+    });
+    
+    await new Promise((resolve, reject) => {
+        db.run(`CREATE INDEX idx_total_games ON players_points_temp(total_games)`, (err) => {
+            if (err) {
+                console.error('Error creating idx_total_games index:', err);
+                reject(err);
+            }
+            resolve();
+        });
+    });
+    
+    await new Promise((resolve, reject) => {
+        db.run(`CREATE INDEX idx_total_amoungus_games ON players_points_temp(total_amoungus_games)`, (err) => {
+            if (err) {
+                console.error('Error creating idx_total_amoungus_games index:', err);
+                reject(err);
+            }
+            resolve();
+        });
+    });
+    
+    await new Promise((resolve, reject) => {
+        db.run(`INSERT INTO players_points_temp (discord_id, guild_id, points, kill_points, task_points)
+                SELECT discord_id, '999450379152527431', points, kill_points, task_points 
+                FROM players_points`, (err) => {
+            if (err) {
+                console.error('Error inserting data into players_points_temp:', err);
+                reject(err);
+            }
+            resolve();
+        });
+    });
+    
+    await new Promise((resolve, reject) => {
+        db.run(`DROP TABLE players_points`, (err) => {
+            if (err) {
+                console.error('Error dropping players_points table:', err);
+                reject(err);
+            }
+            resolve();
+        });
+    });
+    
+    await new Promise((resolve, reject) => {
+        db.run(`ALTER TABLE players_points_temp RENAME TO players_points`, (err) => {
+            if (err) {
+                console.error('Error renaming players_points_temp table:', err);
+                reject(err);
+            }
+            resolve();
+        });
+    });}
 
-db.run(`CREATE TABLE players_points_temp (
-    discord_id TEXT,
-    guild_id TEXT default '999450379152527431',
-    points INTEGER DEFAULT 0,
-    kill_points INTEGER DEFAULT 0,
-    task_points INTEGER DEFAULT 0,
-    total_games INTEGER DEFAULT 0,
-    total_amoungus_games INTEGER DEFAULT 0,
-    PRIMARY KEY (discord_id, guild_id)
-)`);
+// execute();
 
-db.run(`CREATE INDEX idx_points ON players_points_temp(points)`);
-db.run(`CREATE INDEX idx_kill_points ON players_points_temp(kill_points)`);
-db.run(`CREATE INDEX idx_task_points ON players_points_temp(task_points)`);
-db.run(`CREATE INDEX idx_total_games ON players_points_temp(total_games)`);
-db.run(`CREATE INDEX idx_total_amoungus_games ON players_points_temp(total_amoungus_games)`);
-
-db.run(`INSERT INTO players_points_temp (discord_id, guild_id, points, kill_points, task_points)
-        SELECT discord_id, '999450379152527431', points, kill_points, task_points 
-        FROM players_points`);
-
-db.run(`DROP TABLE players_points`);
-
-db.run(`ALTER TABLE players_points_temp RENAME TO players_points`);
 
 // db.run(`ALTER TABLE muted_users ADD COLUMN unmuted INTEGER DEFAULT 0`);
 

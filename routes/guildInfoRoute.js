@@ -1,31 +1,20 @@
 const express = require('express');
-const { decode } = require("next-auth/jwt");
 const { PermissionFlagsBits } = require('discord.js');
-const {client} = require('../config/discordClient');
-const {getTopPlayers} = require("../db/playersScore");
-const {getGuildGamesSettings} = require("../mongoose/utils/GuildManager")
+const { client } = require('../config/discordClient');
+const { getTopPlayers } = require("../db/playersScore");
+const { getGuildGamesSettings, updateGuildGamesSettings } = require("../mongoose/utils/GuildManager");
+const authMiddleware = require('../middlewares/auth');
 const router = express.Router();
 
 // Cache configuration
-const CACHE_TTL = 2 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 const guildInfoCache = new Map();
 
+router.use(authMiddleware);
+
 router.get('/:guildId', async (req, res) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-        return res.status(401).json({ error: 'Authorization header is missing.' });
-    }
-
-    const token = await decode({
-        token: authHeader.split(' ')[1],
-        secret: "hgfhlgfm",
-    });
-    if (!token) {
-        return res.status(401).json({ error: 'Token is missing.' });
-    }
-
     const guildId = req.params.guildId;
-    const cacheKey = `${token.id}-${guildId}`;
+    const cacheKey = `${req.user.id}-${guildId}`;
 
     // Check cache first
     if (guildInfoCache.has(cacheKey)) {
@@ -42,7 +31,7 @@ router.get('/:guildId', async (req, res) => {
 
     try {
         const [member, owner] = await Promise.all([
-            guild.members.fetch(token.id),
+            guild.members.fetch(req.user.id),
             guild.fetchOwner()
         ]);
 
@@ -66,7 +55,7 @@ router.get('/:guildId', async (req, res) => {
                 }
             }));
             
-            const gameSettings = await getGuildGamesSettings("999450379152527431");
+            const gameSettings = await getGuildGamesSettings(guildId);
             const guildInfo = {
                 id: guild.id,
                 name: guild.name,
@@ -74,24 +63,50 @@ router.get('/:guildId', async (req, res) => {
                 members: guild.memberCount,
                 owner: owner.user.tag,
                 topPlayers: topPlayers,
-                gameSettings: gameSettings.gameSettings || {}
+                gameSettings: gameSettings?.games || {}
             };
 
-            // Update cache
             guildInfoCache.set(cacheKey, {
                 guildInfo,
                 timestamp: Date.now()
             });
-
             
             res.json(guildInfo);
-        
         } else {
             res.status(403).json({ error: 'User is not an administrator in this guild.' });
         }
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch guild information.' });
-        console.log(error)
+        console.log(error);
+    }
+});
+
+router.put('/:guildId/games', async (req, res) => {
+    const guildId = req.params.guildId;
+    const newGameSettings = req.body;
+
+    const guild = client.guilds.cache.get(guildId);
+    if (!guild) {
+        return res.status(404).json({ error: 'Guild not found.' });
+    }
+
+    try {
+        const member = await guild.members.fetch(req.user.id);
+
+        if (member && member.permissions.has(PermissionFlagsBits.Administrator)) {
+            const updatedSettings = await updateGuildGamesSettings(guildId, newGameSettings);
+            
+            // Clear the cache for this guild since settings changed
+            const cacheKey = `${req.user.id}-${guildId}`;
+            guildInfoCache.delete(cacheKey);
+            
+            res.json(updatedSettings);
+        } else {
+            res.status(403).json({ error: 'User is not an administrator in this guild.' });
+        }
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update game settings.' });
+        console.log(error);
     }
 });
 
