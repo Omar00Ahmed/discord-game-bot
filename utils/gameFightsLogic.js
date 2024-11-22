@@ -7,6 +7,7 @@ const {LobbyComponent} = require("../components/LobbyEmbed")
 
 
 
+
 const {
     addPlayerPoints
 } = require("../db/playersScore");
@@ -18,6 +19,7 @@ const questionsMemo = new Map();
 
 async function startGame(interaction, lobby, client) {
     if(client.lobbies[lobby.owner].isStarted)return;
+    
     await interaction.channel.send("بدء اللعبة!");
     client.lobbies[lobby.owner].isStarted = true;
     console.log(lobby);
@@ -446,7 +448,7 @@ async function offerRestartOrRemove(interaction, lobby, client, originalTeam1, o
         } else if (i.customId === 'edit_settings') {
             lobby.step = 'players';
             client.lobbies[lobby.owner].firstCheck = true;
-            const { embed, components } = LeaderSettings(lobby, lobby.owner);
+            const { embed, components } = await LeaderSettings(lobby, lobby.owner);
             await i.update({ embeds: [embed], components });
         } else if (i.customId === 'remove_channel') {
             await i.update({ content: 'جاري إزالة القناة...', components: [] });

@@ -30,6 +30,7 @@ const execute = async (interaction, client) => {
                 clearInterval(client.countdownIntervals[lobbyId]);
                 delete client.countdownIntervals[lobbyId];
             }
+            
             await startGame(interaction, lobby, client);
         } else if (lobby.countdownStartTime && !client.countdownIntervals[lobbyId]) {
             // If countdown is active and not already running, start the interval

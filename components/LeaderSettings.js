@@ -1,5 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const questions = require("../public/data/questions.json")
+const { getGuildGameSettings } = require('../mongoose/utils/GuildManager');
+
 
 const availablePlayerOptions = [
     { label: "١ ضد ١", value: "1v1" },
@@ -22,7 +24,7 @@ const winningPointsOptions = [
     { label: "20 نقطة", value: "20" },
 ];
 
-const LeaderSettings = (lobby, userId) => {
+const LeaderSettings = async (lobby, userId) => {
     const embed = new EmbedBuilder()
         .setColor(0x0099ff);
 
@@ -42,6 +44,9 @@ const LeaderSettings = (lobby, userId) => {
             break;
 
         case 'category':
+            const {
+                maximumCategoriesCount
+            } = await getGuildGameSettings(message.guild.id,"teamFights");
             embed.setTitle('اختر فئات الأسئلة')
                 .setDescription('اختر فئة واحدة أو أكثر للأسئلة (الحد الأقصى 6)');
             
@@ -49,7 +54,7 @@ const LeaderSettings = (lobby, userId) => {
                 .setCustomId(`isleaderSettings_categorySelect_${userId}`)
                 .setPlaceholder('اختر الفئات')
                 .setMinValues(1)
-                .setMaxValues(6)
+                .setMaxValues(maximumCategoriesCount)
                 .addOptions(questionCategories);
             
             components.push(new ActionRowBuilder().addComponents(categorySelect));

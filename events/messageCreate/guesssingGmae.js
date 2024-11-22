@@ -1,6 +1,7 @@
 const { Message,ButtonBuilder,ActionRowBuilder,ButtonStyle } = require('discord.js');
 const { prefix } = require("../../utils/MessagePrefix");
 const { addPlayerPoints,addTototalGames } = require("../../db/playersScore");
+const { getGuildGameSettings,getGuildPrefix } = require('../../mongoose/utils/GuildManager');
 
 const GAME_DURATION = 60000; // 1 minute in milliseconds
 const MAX_NUMBER = 35; // Maximum number to guess
@@ -11,12 +12,9 @@ const allowedChannels = [
     "1290377082123194428"
 ];
 
-function calculatePoints(tries) {
-  if (tries === 1) return 5;
-  if (tries === 2) return 4;
-  if (tries === 3) return 3;
-  if (tries <= 5) return 2;
-  return 1;
+function calculatePoints(triesobject,tries) {
+  return triesobject[tries] || triesobject["defaultPoints"] || 1;
+  
 }
 
 module.exports = {
@@ -26,11 +24,24 @@ module.exports = {
    */
   async execute(message, client) {
     if (message.author.bot) return; // Ignore bot messages
+    const prefix = await getGuildPrefix(message.guild.id);
     if (!message.content.startsWith(prefix)) return;
+
+
+    const {
+      startCommand,
+      gameDuration:GAME_DURATION,
+      channels:allowedChannels,
+      isDisabled,
+      pointsPerEachTry,
+      guessingRange
+
+    } = await getGuildGameSettings(message.guild.id,"guessingGame");
+    const [MIN_NUMBER,MAX_NUMBER] = guessingRange.split("-").map(Number);
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
-    if (command === 'تخمين') {
+    if (startCommand.includes(command) && !isDisabled) {
       if (Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChannels.includes(message.channelId)) {
         return message.react("❌");
       }
@@ -39,13 +50,13 @@ module.exports = {
         started:true,
         channelId: message.channelId,
       });
-      const targetNumber = Math.floor(Math.random() * MAX_NUMBER) + 1;
+      const targetNumber = Math.floor(Math.random() * (MAX_NUMBER - MIN_NUMBER + 1)) + MIN_NUMBER;
       console.log(targetNumber);
       const players = new Map();
       let gameEnded = false;
 
       try {
-        const initialMessage = await message.reply(`# لعبة تخمين الأرقام بدأت! خمن الرقم بين 1 و ${MAX_NUMBER}. لديك دقيقة واحدة. `);
+        const initialMessage = await message.reply(`# لعبة تخمين الأرقام بدأت! خمن الرقم بين ${MIN_NUMBER} و ${MAX_NUMBER}. لديك دقيقة واحدة. `);
 
         const collector = message.channel.createMessageCollector({
           filter: m => !m.author.bot && /^\d+$/.test(m.content),
@@ -90,7 +101,7 @@ module.exports = {
           client.gamesStarted.set("numberGuess", false);
 
           if (reason === 'win') {
-            const pointsEarned = calculatePoints(tries);
+            const pointsEarned = calculatePoints(pointsPerEachTry,tries);
             const newPoints = await addPlayerPoints(winner.id, message.guild.id,pointsEarned);
 
             const pointsButton = new ButtonBuilder()

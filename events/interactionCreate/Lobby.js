@@ -1,6 +1,7 @@
 const { LeaderSettings } = require('../../components/LeaderSettings');
 const {LobbyComponent} = require("../../components/LobbyEmbed")
 const {checkCommand} = require("../../utils/checkCommands")
+const { getGuildGameSettings } = require('../../mongoose/utils/GuildManager');
 
 async function execute(interaction, client) {
     if (!interaction.isButton() && !interaction.isStringSelectMenu()) return;
@@ -86,8 +87,7 @@ async function execute(interaction, client) {
     }
 
     client.lobbies[userId] = lobby;
-
-    const { embed, components } = LeaderSettings(lobby, userId);
+    const { embed, components } = await LeaderSettings(lobby, userId);
     await interaction.update({ embeds:[embed], components });
 }
 

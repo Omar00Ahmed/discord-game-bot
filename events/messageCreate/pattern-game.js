@@ -3,6 +3,8 @@ const { prefix } = require("../../utils/MessagePrefix");
 const { addPlayerPoints,addTototalGames } = require("../../db/playersScore");
 const { createCanvas } = require("canvas");
 const {createPatternImage,getRandomPattern} = require("../../utils/patternGameHelpers")
+const { getGuildGameSettings,getGuildPrefix } = require('../../mongoose/utils/GuildManager');
+
 const GAME_DURATION = 20000; // 20 seconds in milliseconds
 const MIN_DIFFICULTY = 4;
 const MAX_DIFFICULTY = 7;
@@ -24,11 +26,25 @@ module.exports = {
    */
   async execute(message, client) {
     if (message.author.bot) return; // Ignore bot messages
+
+    const prefix = await getGuildPrefix(message.guild.id);
     if (!message.content.startsWith(prefix)) return;
+
+    const {
+      startCommand,
+      gameDuration:GAME_DURATION,
+      channels:allowedChannels,
+      isDisabled,
+      points,
+      MIN_DIFFICULTY,
+      MAX_DIFFICULTY,
+      DEFAULT_DIFFICULTY
+
+    } = await getGuildGameSettings(message.guild.id,"patternGame");
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
-    if (command === 'نمط') {
+    if (startCommand.includes(command) && !isDisabled) {
       if (Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChannels.includes(message.channelId)) {
         return message.react("❌");
       }

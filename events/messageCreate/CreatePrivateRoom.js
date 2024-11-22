@@ -4,6 +4,7 @@ const {LeaderSettings} = require("../../components/LeaderSettings");
 const {stopTheGame} = require("../../utils/gameFightsLogic");
 const { Sleep } = require('../../utils/createDelay');
 const { checkIfCanMute } = require('../../utils/WhoCanMute');
+const { getGuildGameSettings,getGuildPrefix } = require('../../mongoose/utils/GuildManager');
 
 /**
  * @param {Message} message The date
@@ -14,21 +15,35 @@ async function execute(message,client) {
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
     
-    if(!message.content.startsWith(prefix))return
+    const prefix = await getGuildPrefix(message.guild.id);
+    if (!message.content.startsWith(prefix)) return;
     
+    const {
+        channelId,
+        startCommand,
+        isDisabled,
+        stopGameCommand,
+        categoryId
+    } = await getGuildGameSettings(message.guild.id,"teamFights");
     
+
+    if (isDisabled) return;
+
+    if (startCommand.includes(command)){
+        handleCreateRoom(message,client,channelId,categoryId);
+        return;
+    };
+
     // Command to create a private channel
     switch (command) {
-        case 'قتال':
-            handleCreateRoom(message,client);
-            break;
-        case 'هدنة':
+        case stopGameCommand:
             handleRemoveRoom(message,client);
             break;
     
-    }}
+    }
+}
 
-async function handleCreateRoom(message,client){
+async function handleCreateRoom(message,client,channelId,categoryId){
     const channelName = `${message.author.username}-gameroom`; // Extract channel name
     const theLobby = client?.lobbies[message.author.id];
     const lobbyChannel = theLobby?.channelId ? await client.channels.fetch(theLobby.channelId).catch(() => null) : null
@@ -45,7 +60,7 @@ async function handleCreateRoom(message,client){
         return message.reply('Please provide a channel name!');
     }
 
-    if(message.channel.id != "1291124084012351499"){
+    if(message.channel.id != channelId){
         return message.reply(`برجاء كتابة الامر في <#1291124084012351499>`);
     }
 
@@ -56,7 +71,7 @@ async function handleCreateRoom(message,client){
             name: channelName,
             type: ChannelType.GuildText,
             // parent:"1291122949432148073",
-            parent:"1291122949432148073",
+            parent:categoryId,
             permissionOverwrites: [
                 {
                     id: message.guild.id, // Deny access to @everyone
@@ -84,7 +99,7 @@ async function handleCreateRoom(message,client){
             team2: []
         };
 
-        const {embed,components} = LeaderSettings(lobby,message.author.id)
+        const {embed,components} = await LeaderSettings(lobby,message.author.id)
 
         // Send settings message 
         await channel.send({ embeds: [embed], components: components });
