@@ -1,18 +1,23 @@
 const { Message, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
 const { prefix } = require("../../utils/MessagePrefix");
 const { addPlayerPoints,addTototalGames } = require("../../db/playersScore");
+const { getGuildGameSettings } = require('../../mongoose/utils/GuildManager');
 
 const GAME_DURATION = 60000; // 1 minute in milliseconds
 const GRID_SIZE = 4;
-const TOTAL_BUTTONS = GRID_SIZE * GRID_SIZE;
-
+// const TOTAL_BUTTONS = GRID_SIZE * GRID_SIZE;
+const greatPrizePossibility =0.02;
+const startCommand = "بحث";
+const pointsPerDefaultBox = 3;
+const pointsPerSpecialBox = 30;
+const isDisabled = false;
 const allowedChannels = [
   "1292642149493510184",
   "1277694414935953564",
   "1290377082123194428"
 ];
 
-function createButtonGrid() {
+function createButtonGrid(greatPrizePossibility) {
   const buttons = [];
   const specialButtons = new Set();
 
@@ -22,7 +27,7 @@ function createButtonGrid() {
 
   // 2% chance to add 30 points to one random button
   let pointButton = null;
-  if (Math.random() < 0.02) {
+  if (Math.random() < greatPrizePossibility) {
     do {
       pointButton = Math.floor(Math.random() * TOTAL_BUTTONS);
     } while (specialButtons.has(pointButton));
@@ -60,13 +65,27 @@ module.exports = {
    * @param {Message} message The message object
    */
   async execute(message, client) {
+    
     if (message.author.bot) return; // Ignore bot messages
-    if (!message.content.startsWith(prefix)) return;
+    const {
+      startCommand,
+      gameDuration:GAME_DURATION,
+      gridSize:GRID_SIZE,
+      greatPrizePossibility,
+      channels:allowedChannels,
+      pointsPerDefaultBox:pointsPerDefaultBox,
+      pointsPerSpecialBox:pointsPerSpecialBox,
+      isDisabled,
+      prefix
 
+    } = await getGuildGameSettings(message.guild.id,"boxesGame");
+    const TOTAL_BUTTONS = GRID_SIZE * GRID_SIZE;
+    if(isDisabled)return;
+    if (!message.content.startsWith(prefix)) return;
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    if (command === 'بحث') {
+    if (startCommand.includes(command)) {
       if (Array.from(client?.gamesStarted.values()).some(game => game.channelId === message.channelId) || !allowedChannels.includes(message.channelId)) {
         return message.react("❌");
       }
@@ -80,7 +99,7 @@ module.exports = {
       let gameEnded = false;
 
       try {
-        const { buttons, totalPrizes } = createButtonGrid();
+        const { buttons, totalPrizes } = createButtonGrid(greatPrizePossibility);
         let collectedPrizes = 0;
 
         const buttonRows = [];
@@ -133,7 +152,7 @@ module.exports = {
             let content = '';
             let pointsEarned = 0;
             if (buttonId.startsWith('coin_')) {
-              pointsEarned = playerData.attempts === 1 ? 6 : 3; // Double points if first attempt
+              pointsEarned = playerData.attempts === 1 ? pointsPerDefaultBox * 2 : pointsPerDefaultBox; // Double points if first attempt
               playerData.coins += pointsEarned;
               buttons[buttonIndex].state = 'coin';
           
@@ -158,7 +177,7 @@ module.exports = {
           
               collectedPrizes++;
             } else if (buttonId.startsWith('point_')) {
-              pointsEarned = playerData.attempts === 1 ? 60 : 30; // Double points if first attempt
+              pointsEarned = playerData.attempts === 1 ? pointsPerSpecialBox*2 : pointsPerSpecialBox; // Double points if first attempt
               playerData.points += pointsEarned;
               buttons[buttonIndex].state = 'point';
           

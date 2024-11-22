@@ -1,4 +1,5 @@
 const Guild = require("../Schema/Guild"); // Adjust the path to where your schema file is saved
+const {getGuildPrefix} = require("../../utils/MessagePrefix");
 
 async function createNewGuild(guildID, globalMessagePrefix) {
     try {
@@ -73,10 +74,27 @@ async function updateGuildGamesSettings(guildID, newGames) {
         throw error;
     }
 }
+
+async function getGuildGameSettings(guildId,gameName){
+    try {
+        // Find the guild settings by guildID
+        const guildSettings = await Guild.findOne({ guildId }).select(`games.${gameName}`);
+        const guildPrefix = await getGuildPrefix(guildId);
+        return {
+            prefix: guildPrefix,
+            ...guildSettings
+        };
+    } catch (error) {
+        console.error("Error fetching guild game settings:", error);
+        throw error;
+    }
+}
+
 module.exports = { 
     createNewGuild,
     getGuildSettings,
     getGuildGamesSettings,
     updateGuildSettings,
-    updateGuildGamesSettings
+    updateGuildGamesSettings,
+    getGuildGameSettings
 };

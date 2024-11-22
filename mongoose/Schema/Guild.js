@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { Schema } = mongoose;
 
 const guildSchema = new mongoose.Schema({
     guildID: {
@@ -147,6 +148,7 @@ const guildSchema = new mongoose.Schema({
             },
             channelId: {
                 type: String,
+                default:"tst",
                 required:true,
             },
             startCommand: {
@@ -167,6 +169,7 @@ const guildSchema = new mongoose.Schema({
             },
             categoryId: {
                 type: String,
+                default:"tst",
                 required:true,
                 
             },
@@ -245,30 +248,16 @@ const guildSchema = new mongoose.Schema({
                 default: 60,
             },
             pointsPerEachTry: {
-                1: {
-                    type: Number,
-                    default: 5,
-                },
-                2: {
-                    type: Number,
-                    default: 4,
-                },
-                3: {
-                    type: Number,
-                    default: 3,
-                },
-                4: {
-                    type: Number,
-                    default: 2,
-                },
-                5: {
-                    type: Number,
-                    default: 2,
-                },
-                defaultPoints: {
-                    type: Number,
-                    default: 1,
-                },            
+                type: Map,
+                of: Number, // Allows only numeric values for new fields
+                default: new Map([
+                  [1, 5],
+                  [2, 4],
+                  [3, 3],
+                  [4, 2],
+                  [5, 2],
+                  ['defaultPoints', 1],
+                ]),
             },
             isDisabled: {
                 type: Boolean,
@@ -343,6 +332,63 @@ const guildSchema = new mongoose.Schema({
                 default: false,
             },
         },
+        amoungUs:{
+            imposterUtilites: {
+                type: Map, // A flexible object structure
+                of: Boolean,
+                default: {
+                    electric:false,
+                    oxygen:true
+                }, // Default empty object
+            },
+            channels: {
+                type: [String], // Array of strings
+                default: [], // Default empty array
+            },
+            startCommand: {
+                type: String,
+                default: "start", // Default string value
+            },
+            lobbyDuration: {
+                type: Number,
+                default: 60, // Default duration in seconds (or any value you prefer)
+            },
+            points: {
+                type: Number,
+                default: 0, // Default points value
+            },
+            isDisabled: {
+                type: Boolean,
+                default: false, // Default is enabled
+            },
+            placesAndTasks: {
+                type: Map, // Map structure with place names as keys and task counts as values
+                of: Number, // Values are numbers
+                default: new Map([
+                    ["Cafeteria", 5],
+                    ["Admin", 3],
+                    ["MedBay", 4],
+                    ["Electrical", 6],
+                ]), // Default values for places and tasks
+            },
+            maximumPlayers: {
+                type: Number,
+                default: 10, // Default maximum players
+            },
+            startMessage: {
+                type: String,
+                default: "Game is starting!", // Default message
+            },
+            oxygenPercentage: {
+                type: Number,
+                default: 100, // Default oxygen percentage
+            },
+            imposterPerEachPlayers: {
+                type: Number,
+                default: 1, // Default imposters per player count
+            },
+            
+        }
     },
 });
 
