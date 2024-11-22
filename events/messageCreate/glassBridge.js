@@ -1,6 +1,8 @@
 const { Message, ButtonBuilder, ActionRowBuilder, ButtonStyle, ComponentType, EmbedBuilder,PermissionsBitField } = require('discord.js');
 const { prefix } = require("../../utils/MessagePrefix");
 const { addPlayerPoints,addTototalGames } = require("../../db/playersScore");
+const { getGuildGameSettings,getGuildPrefix } = require('../../mongoose/utils/GuildManager');
+
 
 const GAME_DURATION = 300000; // 5 minutes in milliseconds
 const LOBBY_DURATION = 30000; // 30 seconds for lobby
@@ -22,13 +24,23 @@ module.exports = {
    */
   async execute(message, client) {
   
-  
+    const prefix = await getGuildPrefix(message.guild.id);
     if (!message.content.startsWith(prefix)) return;
+
+    const {
+      startCommand,
+      gameDuration:GAME_DURATION,
+      channels:allowedChannels,
+      isDisabled,
+      points,
+      lobbyDuration:LOBBY_DURATION,
+      playerAttempts,
+    } = await getGuildGameSettings(message.guild.id,"boxesGame");
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
-    if (command === 'الجسر') {
+    if (startCommand.includes(command) && !isDisabled) {
       if(message.author.bot || !message.member.permissions.has(PermissionsBitField.Flags.Administrator) && !checkIfCanMute(message.member,"moderate")) return;
 
       const existingGame = client.games.get(message.channelId);
@@ -262,7 +274,7 @@ module.exports = {
                 }
                 
                 playersAttempts.set(currentPlayer, (playersAttempts.get(currentPlayer) || 0) + 1);
-                if(playersAttempts.get(currentPlayer) >= (playersOriginalCount > 9 ? 0 : 2)) {
+                if(playersAttempts.get(currentPlayer) >= (playersOriginalCount > 9 ? 0 : playerAttempts)) {
                     players.delete(currentPlayer);
                 }
 
@@ -302,7 +314,7 @@ module.exports = {
             .setTitle('نهاية لعبة جسر الزجاج');
 
           if (reason === 'win') {
-            const pointsEarned = 10; // You can adjust this as needed
+            const pointsEarned = points; // You can adjust this as needed
             const newPoints = await addPlayerPoints(winner,message.guild.id ,pointsEarned);
 
             endEmbed.setDescription(`🏆 <@${winner}> فاز باللعبة وحصل على ${pointsEarned} نقاط!`)

@@ -68,8 +68,8 @@ module.exports = {
     
     if (message.author.bot) return; // Ignore bot messages
     
-    const TOTAL_BUTTONS = GRID_SIZE * GRID_SIZE;
-    if(isDisabled)return;
+    
+    
     const prefix = await getGuildPrefix(message.guild.id)
     if (!message.content.startsWith(prefix)) return;
 
@@ -83,6 +83,8 @@ module.exports = {
       pointsPerGreatBox:pointsPerSpecialBox,
       isDisabled,
     } = await getGuildGameSettings(message.guild.id,"boxesGame");
+    const TOTAL_BUTTONS = GRID_SIZE * GRID_SIZE;
+    if(isDisabled)return;
     
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
