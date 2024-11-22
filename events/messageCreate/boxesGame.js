@@ -1,7 +1,7 @@
 const { Message, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
 const { prefix } = require("../../utils/MessagePrefix");
 const { addPlayerPoints,addTototalGames } = require("../../db/playersScore");
-const { getGuildGameSettings } = require('../../mongoose/utils/GuildManager');
+const { getGuildGameSettings,getGuildPrefix } = require('../../mongoose/utils/GuildManager');
 
 const GAME_DURATION = 60000; // 1 minute in milliseconds
 const GRID_SIZE = 4;
@@ -67,6 +67,12 @@ module.exports = {
   async execute(message, client) {
     
     if (message.author.bot) return; // Ignore bot messages
+    
+    const TOTAL_BUTTONS = GRID_SIZE * GRID_SIZE;
+    if(isDisabled)return;
+    const prefix = await getGuildPrefix(message.guild.id)
+    if (!message.content.startsWith(prefix)) return;
+
     const {
       startCommand,
       gameDuration:GAME_DURATION,
@@ -76,12 +82,7 @@ module.exports = {
       pointsPerDefaultBox:pointsPerDefaultBox,
       pointsPerGreatBox:pointsPerSpecialBox,
       isDisabled,
-      prefix
-
     } = await getGuildGameSettings(message.guild.id,"boxesGame");
-    const TOTAL_BUTTONS = GRID_SIZE * GRID_SIZE;
-    if(isDisabled)return;
-    if (!message.content.startsWith(prefix)) return;
     
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();

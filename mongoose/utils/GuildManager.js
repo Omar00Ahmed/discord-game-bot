@@ -56,6 +56,7 @@ async function updateGuildSettings(guildID, newSettings) {
 }
 
 const cachedGames = new Map();
+const cachedPrefixes = new Map();
 
 async function updateGuildGamesSettings(guildID, newGames) {
     try {
@@ -116,17 +117,30 @@ async function getGuildGameSettings(guildID, gameName) {
         throw error;
     }
 }
-async function isCorrectPrefix(guildID, prefix) {
+
+async function getGuildPrefix(guildID) {
     try {
-        // Find the guild settings by guildID
+        // Check cache first
+        if (cachedPrefixes.has(guildID)) {
+            console.log("Cached prefix found for guildID:", guildID)
+            return cachedPrefixes.get(guildID)
+        }
+
+        // If not in cache, fetch from database
         const guildSettings = await Guild.findOne(
             { guildID },
             { globalMessagePrefix: 1 }
-        );
-        return guildSettings?.globalMessagePrefix === prefix;
+        )
+    
+        const prefix = guildSettings?.globalMessagePrefix
+
+        // Store in cache
+        cachedPrefixes.set(guildID, prefix)
+
+        return prefix
     } catch (error) {
-        console.error("Error fetching guild settings:", error);
-        throw error;
+        console.error("Error fetching guild prefix:", error)
+        throw error
     }
 }
 
@@ -136,5 +150,6 @@ module.exports = {
     getGuildGamesSettings,
     updateGuildSettings,
     updateGuildGamesSettings,
-    getGuildGameSettings
+    getGuildGameSettings,
+    getGuildPrefix,
 };
