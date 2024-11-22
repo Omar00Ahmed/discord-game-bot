@@ -22,7 +22,7 @@ async function getGuildSettings(guildID) {
     try {
         // Find the guild settings by guildID
         const guildSettings = await Guild.findOne({ guildID });
-        return guildSettings;
+        return {...guildSettings,test:"hello"};
     } catch (error) {
         console.error("Error fetching guild settings:", error);
         throw error;
@@ -55,37 +55,77 @@ async function updateGuildSettings(guildID, newSettings) {
     }
 }
 
+const cachedGames = new Map();
+
 async function updateGuildGamesSettings(guildID, newGames) {
     try {
-        // Convert the newGames object into dot notation format
         const updates = {};
         for (const [key, value] of Object.entries(newGames)) {
-            updates[`games.${key}`] = value;
+            for (const [nestedKey, nestedValue] of Object.entries(value)) {
+                updates[`games.${key}.${nestedKey}`] = nestedValue;
+            }
+            // Update cache if exists
+            const cacheKey = `${guildID}-${key}`;
+            if (cachedGames.has(cacheKey)) {
+                const cachedGame = cachedGames.get(cacheKey);
+                cachedGames.set(cacheKey, { ...cachedGame, ...value });
+            }
         }
-        
+
         const updatedSettings = await Guild.findOneAndUpdate(
             { guildID },
             { $set: updates },
             { new: true }
         );
-        return updatedSettings;
+        console.log(updates)
+        return updatedSettings.games;
     } catch (error) {
         console.error("Error updating guild games settings:", error);
         throw error;
     }
 }
 
-async function getGuildGameSettings(guildId,gameName){
+
+
+async function getGuildGameSettings(guildID, gameName) {
     try {
-        // Find the guild settings by guildID
-        const guildSettings = await Guild.findOne({ guildId }).select(`games.${gameName}`);
-        const guildPrefix = await getGuildPrefix(guildId);
-        return {
-            prefix: guildPrefix,
-            ...guildSettings
+        // Check cache first
+        const cacheKey = `${guildID}-${gameName}`;
+        if (cachedGames.has(cacheKey)) {
+            console.log("Cached prefix found for guildID:", guildID);
+            return cachedGames.get(cacheKey);
+        }
+
+        // If not in cache, fetch from database
+        const guildSettings = await Guild.findOne(
+            { guildID },
+            { globalMessagePrefix: 1, [`games.${gameName}`]: 1 }
+        );
+    
+        const result = {
+            prefix: guildSettings?.globalMessagePrefix,
+            ...guildSettings?.games?.[gameName]
         };
+
+        // Store in cache
+        cachedGames.set(cacheKey, result);
+
+        return result;
     } catch (error) {
         console.error("Error fetching guild game settings:", error);
+        throw error;
+    }
+}
+async function isCorrectPrefix(guildID, prefix) {
+    try {
+        // Find the guild settings by guildID
+        const guildSettings = await Guild.findOne(
+            { guildID },
+            { globalMessagePrefix: 1 }
+        );
+        return guildSettings?.globalMessagePrefix === prefix;
+    } catch (error) {
+        console.error("Error fetching guild settings:", error);
         throw error;
     }
 }

@@ -17,7 +17,7 @@ const allowedChannels = [
   "1290377082123194428"
 ];
 
-function createButtonGrid(greatPrizePossibility) {
+function createButtonGrid(greatPrizePossibility,TOTAL_BUTTONS) {
   const buttons = [];
   const specialButtons = new Set();
 
@@ -74,7 +74,7 @@ module.exports = {
       greatPrizePossibility,
       channels:allowedChannels,
       pointsPerDefaultBox:pointsPerDefaultBox,
-      pointsPerSpecialBox:pointsPerSpecialBox,
+      pointsPerGreatBox:pointsPerSpecialBox,
       isDisabled,
       prefix
 
@@ -82,6 +82,7 @@ module.exports = {
     const TOTAL_BUTTONS = GRID_SIZE * GRID_SIZE;
     if(isDisabled)return;
     if (!message.content.startsWith(prefix)) return;
+    
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
 
@@ -99,7 +100,7 @@ module.exports = {
       let gameEnded = false;
 
       try {
-        const { buttons, totalPrizes } = createButtonGrid(greatPrizePossibility);
+        const { buttons, totalPrizes } = createButtonGrid(greatPrizePossibility,TOTAL_BUTTONS);
         let collectedPrizes = 0;
 
         const buttonRows = [];
